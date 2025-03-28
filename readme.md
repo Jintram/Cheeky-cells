@@ -16,6 +16,6 @@ Currently, we have pictures at different magnifications.
 To be able to ues all pictures, I will rescale all pictures to a 20X magnification.
 This will either throw away information or create pictures with lacking resolution despite their size.
 
-#### Tilling
+#### Tiling
 
 (..)
