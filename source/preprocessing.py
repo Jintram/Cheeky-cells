@@ -57,3 +57,8 @@ def resize_pictures_infolder(input_folder, output_folder=None, newX=20):
             img_resized.save(output_folder + f'/resizedTo{newX}_' + filename)  
         else:
             print('No magnification found for file: ' + filename)
+            
+def annotate_pictures(input_folder, output_folder=None):
+    
+    # again, loop over the pictures in the folder
+    
