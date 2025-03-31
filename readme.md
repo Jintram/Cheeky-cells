@@ -22,6 +22,10 @@ This means 40X images will be 2X reduced in pixel size, and 10X images will be 2
 This functions requires the substring "10X", "20X" or "40X" to be present anywhere the filename, 
 such that it can determine the original image size.
 
+#### Image annotation
+
+
+
 #### Tiling
 
 (..)
