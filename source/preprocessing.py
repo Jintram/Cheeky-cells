@@ -17,7 +17,6 @@ import cv2
 from skimage.filters import threshold_otsu, threshold_yen, threshold_li, threshold_triangle, threshold_isodata, threshold_minimum, apply_hysteresis_threshold
 from skimage.morphology import opening, disk, square, binary_opening
 
-
 import matplotlib.pyplot as plt
 
 def get_magnification_fromfilename(filename):
@@ -72,6 +71,7 @@ def resize_pictures_infolder(input_folder, output_folder=None, newX=20):
             
 
 def annotate_pictures(input_folder, output_folder=None):
+    # input_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized/'
     
     global continue_loop
     continue_loop = True
@@ -90,6 +90,7 @@ def annotate_pictures(input_folder, output_folder=None):
     for idx, filepath in enumerate(list_all_files):
         # idx=0; filepath=list_all_files[0]
         filename = filepath.split('/')[-1]
+        annotfilepath = os.path.splitext(filename)[0] + '_seg.npy'
         
         img = Image.open(filepath)
         img = np.array(img)
@@ -98,14 +99,14 @@ def annotate_pictures(input_folder, output_folder=None):
         viewer.add_image(img)
         
         # Load/initialize current seg
-        if os.path.exists(output_folder + filename + '_seg.npy'):
-            current_seg = np.load(output_folder + filename + '_seg.npy', allow_pickle=True)
+        if os.path.exists(output_folder + annotfilepath):
+            current_seg = np.load(output_folder + annotfilepath, allow_pickle=True)
         else:
-            current_seg = np.zeros(np.shape(img)[:2]
+            current_seg = np.zeros(np.shape(img)[:2], dtype=np.uint8)
         
         # add a label layer                           
-        seg_layer = viewer.add_labels(name='segmentation', data=current_seg, dtype=np.uint8))
-        
+        seg_layer = viewer.add_labels(name='segmentation', data=current_seg)
+                
         # add a key binding (shift+Q) that makes 
         @viewer.bind_key('Shift+Q', overwrite=True)
         def stop_loop(viewer):            
@@ -119,113 +120,51 @@ def annotate_pictures(input_folder, output_folder=None):
             print("Skipping to next image")
             viewer.close()
         
+        # Can't do this if want to use from Jupyter
         napari.run()
         
         # close napari
         # viewer.close()
         
         # save the polygon layer to a numpy file
-        np.save(output_folder + filename + '_seg.npy', seg_layer.data)
-        
+        np.save(output_folder + annotfilepath, seg_layer.data)   
         if not continue_loop:
             break
     
     
+def generate_trainingset(input_folder, input_folder_seg=None):
     
-            
-            
-def annotate_pictures_REMOVE(input_folder, output_folder=None):
-    # input_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized/'
-    ''''
-    Loop over the pictures in the folder, open them with Napari,
-    create an annotation layer, allow user to create polygons,
-    save the layer to a numpy file with similar filename
-    and _seg.
-    '''
     
-    if output_folder==None:
-        output_folder = input_folder.rstrip('/') + '_humanannotated/'
-    os.makedirs(output_folder, exist_ok=True)
+    # now loop over the pixels in each annotated file, get
+    # the annotated pixels (i.e. desired output labels),
+    # and attach the correct training picture to it
+
+    # Output folder
+    if annot_folder==None:
+        annot_folder = input_folder.rstrip('/') + '_humanannotated/'
     
-    # again, loop over the pictures in the folder
-    list_all_files = glob.glob(input_folder + '/*')
+    # Get input images
+    list_allimgpaths      = [os.path.basename(f) for f in glob.glob(input_folder + '/*')]
+    # Get annotation files
+    # list_annotfilepaths   = [re.sub(r'\..*$', '_seg.npy', f) for f in list_allimgpaths]
+    list_annotfilepaths   = [os.path.splitext(f)[0]+'_seg.npy' for f in list_allimgpaths]
     
-    for idx, filepath in enumerate(list_all_files):
-        # idx=0; filepath=list_all_files[0]
-        filename = filepath.split('/')[-1]
+    # Loop over images in Napari, saving the annotated images
+    # Stop the loop when SHIFT+Q is pressed in Napari
+    
+    for idx, (filename_img, filename_annot) in enumerate(zip(list_allimgpaths, list_annotfilepaths)):
+        # idx=0; filename_img = list_allimgpaths[0]; filename_annot = list_annotfilepaths[0]
         
-        img = Image.open(filepath)
-        img = np.array(img)
+        # check whether annot file exists
+        if not os.path.exists(annot_folder + filename_annot):
+            print('No annotation file found for file: ' + filename_annot)
+            continue
         
-        img_greyscale = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        # invert image scale
-        img_greyscale = 255 - img_greyscale
-
-        # determine otsu threshold on img_greyscale
-        thresholdval        = threshold_triangle(img_greyscale)
-        img_segmaskauto     = img_greyscale > thresholdval
-        # img_segmask_o  = binary_opening(img_segmask_o, disk(10))
-        # use cv2 to perform binary opening
-        img_segmaskauto = cv2.morphologyEx(img_segmaskauto.astype(np.uint8), cv2.MORPH_CLOSE, disk(20))
-        # apply morphological opening from skimage library
+        # load image
+        img        = Image.open(input_folder + filename_img)
+        img_annot  = np.load(annot_folder + filename_annot, allow_pickle=True)
+            # plt.imshow(img_annot); plt.show(); plt.close()
         
-        
-        # plt.imshow(img_segmask_o); plt.show(); plt.close()
-        
-        viewer = napari.Viewer()
-        viewer.add_image(img_greyscale)
-        # add a label layer
-        #seg_layer = viewer.add_labels(name='segmentation', data=np.zeros(np.shape(img)[:2], dtype=np.uint8))
-        seg_layer = viewer.add_labels(name='segmentationauto', data=img_segmaskauto)
-
-        # viewer.close()
-        
-        
-        seg_mask = viewer.layers['segmentation'].data
-
-        # let's threshold at 1% of the cell values
-        threshold    = np.percentile(img_greyscale[seg_mask==1], 0.98)
-        img_cellmask = np.zeros_like(img_greyscale)
-        img_cellmask[img_greyscale<threshold] = 1
-        
-
-        
-        
-        
-        plt.hist(img_greyscale[seg_mask==1].flatten(), bins=100, label='background')
-        plt.hist(img_greyscale[seg_mask==2].flatten(), bins=100, label='foreground')
-        plt.axvline(threshold)
-        plt.legend()
-        plt.show(); plt.close()
-
-
-        
-        viewer = napari.Viewer()
-        viewer.add_image(img)
-        # add a label layer
-        seg_layer = viewer.add_labels(name='mask_thresholded', data=img_cellmask)
-        
-
-        seg_layer.data
-        viewer.layers['empty_labels'].data
-
-        # retrieve the labeled layer
-        plt.imshow(img_cellmask); plt.show(); plt.close()
-        
-        napari.run()
-        
-        # close napari
-        viewer.close()
-        
-        # save the polygon layer to a numpy file
-        np.save(output_folder + filename + '_seg.npy', polygon_layer.data)
-        
-        # create an image of equal size as img
-        img_seg = np.zeros_like(img)
-        # now draw the polygons from the polygon_layer on top
-        for polygon in polygon_layer.data:
-            # polygon is a list of points
-            # we need to convert it to a list of tuples
-            polygon = [(int(point[0]), int(point[1])) for point in polygon]
-            # now draw the polygon on img_seg
-            img_seg = cv2.fillPoly(img_seg, [np.array(polygon)], 1)
+        print(np.sum(img_annot>0),'pixels to annotate')
+        # Oops, this is a bit much .. 
+        # I guess I'll have to write a generator that directly accesses these annotations and images
