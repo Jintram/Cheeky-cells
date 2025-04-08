@@ -19,6 +19,10 @@ from skimage.morphology import opening, disk, square, binary_opening
 
 import matplotlib.pyplot as plt
 
+# from source.preprocessing import *
+# reload
+# import importlib; import source.preprocessing; importlib.reload(source.preprocessing)
+
 def get_magnification_fromfilename(filename):
     # can handle magnification form 10X-99X (assumes digit, digit, X pattern)
     # filename = '3x Cellen (20x vegroting).jpg'
@@ -259,9 +263,10 @@ def build_labels_and_positions(annot_dir, annot_pixelcount_list, list_allimgpath
 def provide_crop(input_folder, filename_img, posi, posj, SIZE_HALF=14):
     # input_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/'
     
-    # posi = complete_label_table[1, 0]
-    # posj = complete_label_table[2, 0]
-    # filename_img = list_allimgpaths[0]
+    # IMG_IDX = 100
+    # filename_img = list_allimgpaths[complete_label_table[0,IMG_IDX]]
+    # posi = complete_label_table[1, IMG_IDX]
+    # posj = complete_label_table[2, IMG_IDX]
     
     # open image
     img = np.array(Image.open(input_folder + filename_img))
@@ -277,6 +282,35 @@ def provide_crop(input_folder, filename_img, posi, posj, SIZE_HALF=14):
         #plt.imshow(img_crop); plt.show(); plt.close()
     
     return img_crop
+    
+def test_provide_crop(img_idx):    
+    
+    # img_idx=100
+    
+    input_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/'
+    annot_dir = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_humanannotated/'
+    
+    annot_pixelcount_list, list_allimgpaths, list_annotfilepaths = acquire_trainingset_info(input_folder, annot_dir)
+    complete_label_table = build_labels_and_positions(annot_dir, annot_pixelcount_list, list_allimgpaths, list_annotfilepaths)
+    
+    img_crop = provide_crop(input_folder=input_folder, 
+                            filename_img = list_allimgpaths[complete_label_table[0,img_idx]],
+                            posi=complete_label_table[1,img_idx], 
+                            posj=complete_label_table[2,img_idx])    
+    
+    return(img_crop)
+
+def test_test_provide_crop():
+    
+    IMG_IDX = 0
+    plt.imshow(test_provide_crop(IMG_IDX))
+    plt.show(); plt.close()
+    
+    IMG_IDX = 100
+    plt.imshow(test_provide_crop(IMG_IDX))
+    plt.show(); plt.close()
+    
+                     
     
 #idx=0
 #list_allimgpaths[idx]
