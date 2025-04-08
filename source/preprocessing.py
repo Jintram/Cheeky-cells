@@ -132,8 +132,7 @@ def annotate_pictures(input_folder, output_folder=None):
             break
     
     
-def generate_trainingset(input_folder, input_folder_seg=None):
-    
+def acquire_trainingset_info(input_folder, input_folder_seg=None):
     
     # now loop over the pixels in each annotated file, get
     # the annotated pixels (i.e. desired output labels),
@@ -152,6 +151,7 @@ def generate_trainingset(input_folder, input_folder_seg=None):
     # Loop over images in Napari, saving the annotated images
     # Stop the loop when SHIFT+Q is pressed in Napari
     
+    annot_pixelcount_list = [np.nan] * len(list_allimgpaths)
     for idx, (filename_img, filename_annot) in enumerate(zip(list_allimgpaths, list_annotfilepaths)):
         # idx=0; filename_img = list_allimgpaths[0]; filename_annot = list_annotfilepaths[0]
         
@@ -161,10 +161,50 @@ def generate_trainingset(input_folder, input_folder_seg=None):
             continue
         
         # load image
-        img        = Image.open(input_folder + filename_img)
+        # img        = Image.open(input_folder + filename_img)
         img_annot  = np.load(annot_folder + filename_annot, allow_pickle=True)
             # plt.imshow(img_annot); plt.show(); plt.close()
         
-        print(np.sum(img_annot>0),'pixels to annotate')
-        # Oops, this is a bit much .. 
-        # I guess I'll have to write a generator that directly accesses these annotations and images
+        print(np.sum(img_annot>0),'pixels in image \''+ filename_annot+'\'')
+        annot_pixelcount_list[idx] = np.sum(img_annot>0)
+        
+    return annot_pixelcount_list, list_allimgpaths, list_annotfilepaths
+        
+def map_index_to_img(idx, annot_pixelcount_list):
+    # annot_pixelcount_list=test_case
+    
+    if idx > np.nansum(annot_pixelcount_list):
+        raise ValueError('idx not available')
+    
+    # find the first value equal or higher than idx in annot_pixelcount_list
+    img_idx = np.where(np.nancumsum(annot_pixelcount_list) >= idx)[0][0]
+    
+    return img_idx
+
+def test_map_index_to_img():    
+    
+    test_case = [10,20,10, np.nan, 30]
+    
+    assert map_index_to_img(0, test_case) == 0, 'failure'
+    
+    assert map_index_to_img(10, test_case) == 0, 'failure'
+    assert map_index_to_img(11, test_case) == 1, 'failure'
+    
+    assert map_index_to_img(30, test_case) == 1, 'failure'
+    assert map_index_to_img(31, test_case) == 2, 'failure'
+    
+    assert map_index_to_img(40, test_case) == 2, 'failure'
+    assert map_index_to_img(70, test_case) == 4, 'failure'
+    # map_index_to_img(71, test_case) # should fail
+    
+def create_crop_img_n_label(input_folder, list_allimgpaths, annot_folder, list_annotfilepaths, img_idx):
+    
+    filename_img   = list_allimgpaths[img_idx]
+    filename_annot = list_annotfilepaths[img_idx]
+    
+    # Load the two images
+    img        = Image.open(input_folder + filename_img)
+    img_annot  = np.load(annot_folder + filename_annot, allow_pickle=True)
+    
+    
+    
