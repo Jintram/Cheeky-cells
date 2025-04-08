@@ -68,7 +68,40 @@ def resize_pictures_infolder(input_folder, output_folder=None, newX=20):
         else:
             print('No magnification found for file: ' + filename)
             
-            
+def wipe_borders(seg_layer_data, SIZE_HALF=14):
+    
+    # wipe the borders clean
+    seg_layer_data[:SIZE_HALF+1, :] = 0 
+    seg_layer_data[:, :SIZE_HALF+1] = 0 
+    seg_layer_data[-SIZE_HALF-1:, :] = 0
+    seg_layer_data[:, -SIZE_HALF-1:] = 0 
+    
+    return seg_layer_data
+    
+def convert_imgs_togrey(input_folder):
+    
+    # loop over all images in the folder, and convert them
+    # to greyscale, export these to a 2nd folder with
+    # suffix "_grey"
+    
+    # input_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW/'
+    output_folder = input_folder.rstrip('/') + '_grey/'
+    os.makedirs(output_folder, exist_ok=True)
+    
+    list_all_files = glob.glob(input_folder + '/*')
+    
+    for idx, filepath in enumerate(list_all_files):
+        # idx = 0; filepath = list_all_files[0]
+        
+        img      = Image.open(filepath)
+        img_grey = img.convert('L')  # Convert to greyscale
+        
+        # plt.imshow(img_grey); plt.show(); plt.close()
+        
+        # save the image to the output directory
+        filename = filepath.split('/')[-1]
+        img_grey.save(output_folder + filename)  
+    
 
 def annotate_pictures(input_folder, output_folder=None):
     # input_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized/'
@@ -127,20 +160,12 @@ def annotate_pictures(input_folder, output_folder=None):
         # viewer.close()
         
         # save the polygon layer to a numpy file
-        np.save(output_folder + annotfilepath, seg_layer.data)   
+        seg_layer_data_cleanborder = wipe_borders(seg_layer.data)
+        np.save(output_folder + annotfilepath, seg_layer_data_cleanborder)
         if not continue_loop:
             break
     
-    
-def acquire_trainingset_info(input_folder, input_folder_seg=None):
-    
-    # now loop over the pixels in each annotated file, get
-    # the annotated pixels (i.e. desired output labels),
-    # and attach the correct training picture to it
-
-    # Output folder
-    if annot_folder==None:
-        annot_folder = input_folder.rstrip('/') + '_humanannotated/'
+def give_img_paths(input_folder):
     
     # Get input images
     list_allimgpaths      = [os.path.basename(f) for f in glob.glob(input_folder + '/*')]
@@ -148,21 +173,40 @@ def acquire_trainingset_info(input_folder, input_folder_seg=None):
     # list_annotfilepaths   = [re.sub(r'\..*$', '_seg.npy', f) for f in list_allimgpaths]
     list_annotfilepaths   = [os.path.splitext(f)[0]+'_seg.npy' for f in list_allimgpaths]
     
+    return list_allimgpaths, list_annotfilepaths
+
+    
+def acquire_trainingset_info(input_folder, annot_dir=None):
+    # input_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized/'
+    '''
+    Simply counts amount of annotated pixels in each img file.
+    '''
+    
+    # now loop over the pixels in each annotated file, get
+    # the annotated pixels (i.e. desired output labels),
+    # and attach the correct training picture to it
+
+    # Output folder
+    if annot_dir==None:
+        annot_dir = input_folder.rstrip('/') + '_humanannotated/'
+    
+    list_allimgpaths, list_annotfilepaths = give_img_paths(input_folder)
+        
     # Loop over images in Napari, saving the annotated images
     # Stop the loop when SHIFT+Q is pressed in Napari
     
-    annot_pixelcount_list = [np.nan] * len(list_allimgpaths)
+    annot_pixelcount_list = np.zeros(len(list_allimgpaths), dtype=np.uint64)
     for idx, (filename_img, filename_annot) in enumerate(zip(list_allimgpaths, list_annotfilepaths)):
         # idx=0; filename_img = list_allimgpaths[0]; filename_annot = list_annotfilepaths[0]
         
         # check whether annot file exists
-        if not os.path.exists(annot_folder + filename_annot):
+        if not os.path.exists(annot_dir + filename_annot):
             print('No annotation file found for file: ' + filename_annot)
             continue
         
         # load image
         # img        = Image.open(input_folder + filename_img)
-        img_annot  = np.load(annot_folder + filename_annot, allow_pickle=True)
+        img_annot  = np.load(annot_dir + filename_annot, allow_pickle=True)
             # plt.imshow(img_annot); plt.show(); plt.close()
         
         print(np.sum(img_annot>0),'pixels in image \''+ filename_annot+'\'')
@@ -170,7 +214,79 @@ def acquire_trainingset_info(input_folder, input_folder_seg=None):
         
     return annot_pixelcount_list, list_allimgpaths, list_annotfilepaths
         
+        
+def build_labels_and_positions(annot_dir, annot_pixelcount_list, list_allimgpaths, list_annotfilepaths):
+    '''
+    Go over the annotated images, and save for each annotated pixel
+    the corresponding image index, it's location, and its 
+    annotation in a table.
+    
+    Such that:
+    complete_label_table[0,:] = img_idx
+    complete_label_table[1,:] = posi
+    complete_label_table[2,:] = posj
+    complete_label_table[3,:] = annotation
+    '''
+    
+    total_labels = np.sum(annot_pixelcount_list)    
+    idx_related_imgs = np.concatenate((np.array([0], dtype=np.uint64), np.cumsum(annot_pixelcount_list)))
+    complete_label_table = np.empty([4, total_labels], dtype=np.uint64)
+    for img_idx, (px_count, filename_img, filename_annot) in enumerate(zip(annot_pixelcount_list, list_allimgpaths, list_annotfilepaths)):
+        # idx=0; filename_img = list_allimgpaths[0]; filename_annot = list_annotfilepaths[0]
+        
+        # check whether annotated pixels (implies existence file)
+        if not px_count>0:
+            continue
+        
+        img_annot  = np.load(annot_dir + filename_annot, allow_pickle=True)
+        
+        sel_annotated = img_annot>0
+        loc_annotated = np.where(sel_annotated)
+        annotations   = img_annot[sel_annotated]
+        
+        # now store
+        idx1=idx_related_imgs[img_idx]; idx2=idx_related_imgs[img_idx+1]
+        complete_label_table[0,idx1:idx2] = img_idx
+        complete_label_table[1,idx1:idx2] = loc_annotated[0]
+        complete_label_table[2,idx1:idx2] = loc_annotated[1]
+        complete_label_table[3,idx1:idx2] = annotations        
+        
+        if complete_label_table.nbytes/(1024**2)>250: # size in megabytes
+            Warning('The indexing table got pretty large, perhaps re-code this part..')
+        
+    return complete_label_table
+        
+def provide_crop(input_folder, filename_img, posi, posj, SIZE_HALF=14):
+    # input_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/'
+    
+    # posi = complete_label_table[1, 0]
+    # posj = complete_label_table[2, 0]
+    # filename_img = list_allimgpaths[0]
+    
+    # open image
+    img = np.array(Image.open(input_folder + filename_img))
+        
+    # determine crop region
+    cropregion = [posi-SIZE_HALF, posi+SIZE_HALF+1, posj-SIZE_HALF, posj+SIZE_HALF+1]    
+    
+    # show crop region on large image
+    # plt.imshow(img); plt.gca().add_patch(plt.Rectangle((cropregion[2], cropregion[0]), cropregion[3]-cropregion[2], cropregion[1]-cropregion[0], fill=False, edgecolor='red', linewidth=2))
+    # plt.show(); plt.close()
+        
+    img_crop = img[cropregion[0]:cropregion[1], cropregion[2]:cropregion[3]]
+        #plt.imshow(img_crop); plt.show(); plt.close()
+    
+    return img_crop
+    
+#idx=0
+#list_allimgpaths[idx]
+#posi
+#provide_crop(img_dir, img_list[idx], self.posis, self.posjs)    
+        
 def map_index_to_img(idx, annot_pixelcount_list):
+    '''
+    Currently not used.
+    '''
     # annot_pixelcount_list=test_case
     
     if idx > np.nansum(annot_pixelcount_list):
@@ -197,14 +313,45 @@ def test_map_index_to_img():
     assert map_index_to_img(70, test_case) == 4, 'failure'
     # map_index_to_img(71, test_case) # should fail
     
-def create_crop_img_n_label(input_folder, list_allimgpaths, annot_folder, list_annotfilepaths, img_idx):
+# def create_crop_img_n_label(input_folder, list_allimgpaths, annot_dir, list_annotfilepaths, img_idx):
     
-    filename_img   = list_allimgpaths[img_idx]
-    filename_annot = list_annotfilepaths[img_idx]
+#     filename_img   = list_allimgpaths[img_idx]
+#     filename_annot = list_annotfilepaths[img_idx]
     
-    # Load the two images
-    img        = Image.open(input_folder + filename_img)
-    img_annot  = np.load(annot_folder + filename_annot, allow_pickle=True)
+#     # Load the two images
+#     img        = Image.open(input_folder + filename_img)
+#     img_annot  = np.load(annot_dir + filename_annot, allow_pickle=True)
+    
+def divide_evenly(total_samples, count_list):
+    # count_list = annot_pixelcount_list    
+    
+    pass
+    
+    # distribution = np.array([np.nan]*len(count_list))
+    # distribution[np.logical_or(count_list==0, np.isnan(count_list))] = 0
+    
+    # slots_w_space = 
+    
+    # # determine how much will be added
+    # while slots_w_space>0:
+        
+    #     to_add = 
+        
+    #     np.nanmin(count_list)
+        
+    #     slots_w_space = 
+    
+        
+    
+def create_sampled_imgset(total_samples):
+    
+    pass
+    
+    # distribute N samples (total_samples) evenly over
+    # sample numbers lisetd in annot_pixelcount_list
+    
+    # annot_pixelcount_list, list_allimgpaths, list_annotfilepaths = acquire_trainingset_info(input_folder)
     
     
+        
     
