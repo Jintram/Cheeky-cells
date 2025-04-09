@@ -272,7 +272,7 @@ def provide_crop(input_folder, filename_img, posi, posj, SIZE_HALF=14):
     img = np.array(Image.open(input_folder + filename_img))
         
     # determine crop region
-    cropregion = [posi-SIZE_HALF, posi+SIZE_HALF+1, posj-SIZE_HALF, posj+SIZE_HALF+1]    
+    cropregion = [posi-SIZE_HALF, posi+SIZE_HALF+1, posj-SIZE_HALF, posj+SIZE_HALF+1]
     
     # show crop region on large image
     # plt.imshow(img); plt.gca().add_patch(plt.Rectangle((cropregion[2], cropregion[0]), cropregion[3]-cropregion[2], cropregion[1]-cropregion[0], fill=False, edgecolor='red', linewidth=2))
