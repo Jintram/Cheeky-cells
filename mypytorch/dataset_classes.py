@@ -23,10 +23,11 @@ import mypytorch.dataset_classes as md
 # /Users/m.wehrens/Documents/git_repos/_UVA/2025_MW-testing-ML/simple-tutorial.ipynb
 
 class CustomImageDataset(Dataset):
-    def __init__(self, annot_dir, img_dir, transform=None, target_transform=None):#, add_dim=False):
+    def __init__(self, annot_dir, img_dir, transform=None, target_transform=None, targetdevice="mps"):#, add_dim=False):
         
         self.annot_dir = annot_dir
         self.img_dir = img_dir
+        self.targetdevice = targetdevice
         # self.add_dim = add_dim # toggle to add extra dimension at start
         
         # get dataset info
@@ -76,4 +77,4 @@ class CustomImageDataset(Dataset):
         #    image = image.unsqueeze(0)
         # REMOVED: image already had size (1, 29, 29)
             
-        return image, label
+        return image.to(self.targetdevice), label.to(self.targetdevice)

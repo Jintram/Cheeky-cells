@@ -95,3 +95,6 @@ def examplecode():
     # dataloader=train_loader; model=modelCNN
     loss_tracker = mt.train_loop(train_loader, modelCNN, loss_fn, optimizer, TOTAL_SAMPLES=TOTAL_SAMPLES, BATCH_SIZE=BATCH_SIZE)
     current_correct  = mt.test_loop(val_loader, modelCNN, loss_fn, NUM_TESTBATCHES=NUM_TESTBATCHES)
+
+    CONTINUE BY TESTING THE ABOVE FUNCTIONS, WHETHER THEY OPERATE PROPERLY
+    (HAD ALREADY STARTED).
