@@ -1,8 +1,11 @@
 
 
+
+import sys
+import os
+
 import torch
 
-import os
 import pandas as pd
 from torchvision.io import read_image
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
@@ -17,19 +20,22 @@ import source.preprocessing as cheepre
 import mypytorch.mymodels as mm
 import mypytorch.dataset_classes as md
 
+# reload the custom libs
+# import importlib; importlib.reload(mm); importlib.reload(md); importlib.reload(cheepre)
 
 # Based on tutorial and notebook listed below
 # https://pytorch.org/tutorials/beginner/basics/intro.html
 # /Users/m.wehrens/Documents/git_repos/_UVA/2025_MW-testing-ML/simple-tutorial.ipynb
 
 class CustomImageDataset(Dataset):
-    def __init__(self, annot_dir, img_dir, transform=None, target_transform=None, targetdevice="mps"):#, add_dim=False):
+    def __init__(self, annot_dir, img_dir, transform=None, target_transform=None, targetdevice="mps", preload_imgs=False):#, add_dim=False):
         
         self.annot_dir = annot_dir
         self.img_dir = img_dir
         self.targetdevice = targetdevice
+        self.preload_imgs = preload_imgs
         # self.add_dim = add_dim # toggle to add extra dimension at start
-        
+            
         # get dataset info
         annot_pixelcount_list, list_allimgpaths, list_annotfilepaths = cheepre.acquire_trainingset_info(img_dir, annot_dir)
         self.annot_pixelcount_list = annot_pixelcount_list
@@ -41,6 +47,12 @@ class CustomImageDataset(Dataset):
             cheepre.build_labels_and_positions(annot_dir, annot_pixelcount_list, list_allimgpaths, list_annotfilepaths)
         self.labels = self.labels.astype(int)
         
+        if self.preload_imgs:                 
+            self.largeimgs = \
+                {filename_img: cheepre.provide_img(img_dir, filename_img) for filename_img in list_allimgpaths}
+                # get object size for the above dict
+                # sys.getsizeof({filename_img: cheepre.provide_img(img_dir, filename_img) for filename_img in list_allimgpaths})
+                
         # now manually shuffle the dataset
         # (I do this manually to also allow weighted sampling later)
         # (shuffle=True and weighed sampling are mutually exclusive)
@@ -64,7 +76,10 @@ class CustomImageDataset(Dataset):
         
         # now produce the label and the image
         label = self.labels[idx]
-        image = cheepre.provide_crop(self.img_dir, self.img_list[self.img_idxs[idx]], self.posis[idx], self.posjs[idx])
+        if self.preload_imgs:
+            image = cheepre.provide_crop_img(self.largeimgs[self.img_list[self.img_idxs[idx]]], self.posis[idx], self.posjs[idx])
+        else:
+            image = cheepre.provide_crop(self.img_dir, self.img_list[self.img_idxs[idx]], self.posis[idx], self.posjs[idx])
         
         # transform
         if self.transform:

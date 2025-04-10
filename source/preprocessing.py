@@ -282,6 +282,28 @@ def provide_crop(input_folder, filename_img, posi, posj, SIZE_HALF=14):
         #plt.imshow(img_crop); plt.show(); plt.close()
     
     return img_crop
+
+def provide_crop_img(img, posi, posj, SIZE_HALF=14):
+        
+    cropregion = [posi-SIZE_HALF, posi+SIZE_HALF+1, posj-SIZE_HALF, posj+SIZE_HALF+1]        
+    
+    img_crop = img[cropregion[0]:cropregion[1], cropregion[2]:cropregion[3]]
+        #plt.imshow(img_crop); plt.show(); plt.close()
+    
+    return img_crop
+
+def provide_img(input_folder, filename_img):
+    # input_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/'
+    
+    # IMG_IDX = 100
+    # filename_img = list_allimgpaths[complete_label_table[0,IMG_IDX]]
+    # posi = complete_label_table[1, IMG_IDX]
+    # posj = complete_label_table[2, IMG_IDX]
+    
+    # open image
+    img = np.array(Image.open(input_folder + filename_img))
+    
+    return img
     
 def test_provide_crop(img_idx):    
     
@@ -299,6 +321,38 @@ def test_provide_crop(img_idx):
                             posj=complete_label_table[2,img_idx])    
     
     return(img_crop)
+
+
+
+
+
+def output_whole_trainingset():
+    
+    input_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/'
+    annot_dir = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_humanannotated/'
+    
+    annot_pixelcount_list, list_allimgpaths, list_annotfilepaths = acquire_trainingset_info(input_folder, annot_dir)
+    complete_label_table = build_labels_and_positions(annot_dir, annot_pixelcount_list, list_allimgpaths, list_annotfilepaths)
+    
+    # export all images to an easy working folder
+    work_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/training_data/'        
+    os.makedirs(work_folder)
+    nr_of_images = complete_label_table.shape[1]
+    for img_idx in range(nr_of_images):
+                        
+        filename_img = list_allimgpaths[complete_label_table[0,img_idx]]
+        posi=complete_label_table[1,img_idx]
+        posj=complete_label_table[2,img_idx]
+                                
+        img_crop = provide_crop(input_folder=input_folder, 
+                        filename_img = filename_img,
+                        posi=posi, 
+                        posj=posj)    
+                
+        if img_idx % 1000 == 0:
+            print('Percentage done:', round(100*img_idx/nr_of_images,1))
+        
+        np.save(work_folder + filename_img + f'__{posi}_{posj}' + '.npy', img_crop)
 
 def test_test_provide_crop():
     
