@@ -50,18 +50,20 @@ class CNN(nn.Module):
         x = x.reshape(x.size(0), -1)
         x = self.fc1(x)
         return x
+ 
+def examplecoderemove():
     
-modelCNN = CNN((1, 29, 29), 5)    
-    # sum(p.numel() for p in modelCNN.parameters())
-    
-opts = {
-    'lr': 1e-3,
-    'epochs': 20,
-    'batch_size': 64
-}
+    modelCNN = CNN((1, 29, 29), 5)    
+        # sum(p.numel() for p in modelCNN.parameters())
+        
+    opts = {
+        'lr': 1e-3,
+        'epochs': 20,
+        'batch_size': 64
+    }
 
-optimizer = torch.optim.Adam(model.parameters(), opts['lr'])
-criterion = torch.nn.CrossEntropyLoss()  # loss function
+    optimizer = torch.optim.Adam(model.parameters(), opts['lr'])
+    criterion = torch.nn.CrossEntropyLoss()  # loss function
 
 
 
