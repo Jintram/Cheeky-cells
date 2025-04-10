@@ -58,6 +58,7 @@ def loadmodel():
     model = NeuralNetwork().to("mps")
     model.load_state_dict(torch.load(PATH, weights_only=True))
     model.eval()
+    # sum(p.numel() for p in model.parameters())
     
     return model
 
