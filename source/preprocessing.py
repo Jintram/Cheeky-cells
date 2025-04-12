@@ -324,6 +324,60 @@ def test_provide_crop(img_idx):
 
 
 
+def return_testset_array_manual(img_sel=None):
+    '''
+    Function returns selection of points and their image crops
+    from a specified image. 
+    Used for sanity check whether training data was indeed
+    classified correctly.
+    '''
+    
+    SAMPLES_TO_RETURN = 50
+    img_sel = [0]
+    
+    input_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/'
+    annot_dir = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_humanannotated/'
+    
+    annot_pixelcount_list, list_allimgpaths, list_annotfilepaths = acquire_trainingset_info(input_folder, annot_dir)
+    complete_label_table = build_labels_and_positions(annot_dir, annot_pixelcount_list, list_allimgpaths, list_annotfilepaths)
+    
+    # create selection if desired
+    if not img_sel == None:
+        complete_label_table_sel = complete_label_table[:, np.isin(complete_label_table[0,:],img_sel)]
+    else:
+        complete_label_table_sel = complete_label_table        
+    
+    # export all images to an easy working folder
+    nr_of_images = complete_label_table_sel.shape[1]
+    list_all_images_collected = np.zeros([SAMPLES_TO_RETURN, 29, 29], dtype=np.uint8)
+    
+    # create a random shuffled index for complete_label_table_sel along 1st dim
+    np.random.seed(42)
+    shuffled_indices = np.arange(complete_label_table_sel.shape[1])
+    np.random.shuffle(shuffled_indices)
+    shuffled_indices_sel = shuffled_indices[:SAMPLES_TO_RETURN]
+    
+    for loop_idx in range(SAMPLES_TO_RETURN):
+        # loop_idx = 0
+                        
+        img_idx = shuffled_indices_sel[loop_idx]                    
+                        
+        filename_img = list_allimgpaths[complete_label_table_sel[0,img_idx]]
+        posi=complete_label_table_sel[1,img_idx]
+        posj=complete_label_table_sel[2,img_idx]
+                                
+        img_crop = provide_crop(input_folder=input_folder, 
+                        filename_img = filename_img,
+                        posi=posi, 
+                        posj=posj)    
+                
+        if img_idx % 1000 == 0:
+            print('Percentage done:', round(100*img_idx/nr_of_images,1))
+        
+        list_all_images_collected[loop_idx,:,:] = img_crop
+        
+    
+    return(list_all_images_collected, complete_label_table_sel)
 
 
 def output_whole_trainingset():

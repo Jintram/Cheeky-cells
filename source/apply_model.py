@@ -1,3 +1,4 @@
+
 # Load applicable library
 import os
 import torch
@@ -11,8 +12,12 @@ import numpy as np
 
 import sys
 from matplotlib.colors import ListedColormap
+import matplotlib.pyplot as plt
+
 sys.path.append('/Users/m.wehrens/Documents/git_repos/_UVA/2025_Cheeky-cells/')
 import source.preprocessing as cheepre
+
+import mypytorch.mymodels as mm
 
 import seaborn as sns
 
@@ -29,33 +34,17 @@ color_palette = [
     "#CC79A7",  # Reddish Purple
     "#000000"   # Black
 ] 
-
-
-# define my model
-# (note: carefull! this is redundant, may need to centralize this!)
-class NeuralNetwork(nn.Module):
-    def __init__(self):
-        super().__init__()
-        self.flatten = nn.Flatten()
-        self.linear_relu_stack = nn.Sequential(
-            nn.Linear(29*29, 512),
-            nn.ReLU(),
-            nn.Linear(512, 512),
-            nn.ReLU(),
-            nn.Linear(512, 6),
-        )
-
-    def forward(self, x):
-        x = self.flatten(x)
-        logits = self.linear_relu_stack(x)
-        return logits
     
 
 def loadmodel():
     
     PATH='/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/pytorchmodel_lr.1_66pct_2025-04-09_14-33.pth'
+    PATH='/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/pytorchmodel_verySimple-78pct_2025-04-10_17-48.pth'    
+    model = mm.VerySimpleNN().to("mps")
     
-    model = NeuralNetwork().to("mps")
+    PATH='/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/pytorchmodel_CNN_90pct_2025-04-10_18-16.pth'
+    model = mm.CNN((1, 29, 29),6).to("mps")
+    
     model.load_state_dict(torch.load(PATH, weights_only=True))
     model.eval()
     # sum(p.numel() for p in model.parameters())
@@ -64,14 +53,18 @@ def loadmodel():
 
 def loadimage():
     
+    # arbitrary iamge
     filepath='/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/resizedTo20_2x Cellen 3 (20x vegroting).jpg'
-    
+    # image that was trained on
+    filepath='/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/resizedTo20_Cellen tellen, 10x foto 1.jpg'
+    filepath='/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/resizedTo20_10x viv wang mb 2.jpg'
     img = Image.open(filepath)
     img = np.array(img)
     
     return img    
     
-def applymodeltoimage(img, SIZE_HALF=14):
+def applymodeltoimage_batchmode(img):
+    SIZE_HALF=14
     
     image_sizei = img.shape[0]
     image_sizej = img.shape[1]
@@ -82,31 +75,65 @@ def applymodeltoimage(img, SIZE_HALF=14):
     end_j   = image_sizej - SIZE_HALF
 
     output_img = np.zeros_like(img, dtype=np.int8)
+    #img_collection_tensor = torch.zeros((end_i-start_i)*(end_j-start_j), 1, 29, 29, requires_grad=False).to("mps")
+    img_collection_array  = np.zeros([(end_i-start_i)*(end_j-start_j), 1, 29, 29], dtype=np.uint8)
+    
+    print('Preparing image')
     for idx_i in range(start_i, end_i):
         for idx_j in range(start_j, end_j):
             # idx_i = SIZE_HALF+1; idx_j = SIZE_HALF+1
             
             # define the square
-            square = img[(idx_i-SIZE_HALF):(idx_i+SIZE_HALF+1), (idx_j-SIZE_HALF):(idx_j+SIZE_HALF+1)].astype(np.float32)
+            square = img[(idx_i-SIZE_HALF):(idx_i+SIZE_HALF+1), (idx_j-SIZE_HALF):(idx_j+SIZE_HALF+1)].astype(np.uint8)
             square_exp = np.expand_dims(square, axis=0) # expects shape [1, 29, 29]
             
             # convert to tensor
-            square_tensor = torch.from_numpy(square_exp).to("mps")
+            # This requires insane amounts of memory for larger objects
+            # Need to do this later on the fly
+            # square_tensor = torch.from_numpy(square_exp).to("mps")
                 # plt.imshow(square); plt.show(); plt.close()
-                        
-            # apply model
-            pred = model(square_tensor)
-            # get the index of the max value
-            pred_idx = torch.argmax(pred, dim=1)
-            # convert to python integer
-            pred_idx = int(pred_idx.item())
             
-            output_img[idx_i, idx_j] = pred_idx
-            
-        if ((idx_i) % 10) == 0:
-            print(f'{idx_i}/{end_i} lines done ({round(idx_i/end_i*100,1)}%).')
-            unique, counts = np.unique(output_img, return_counts=True)
-            print(counts)
+            # add tensor to collection
+            idx = (idx_i-start_i)*(end_j-start_j) + (idx_j-start_j)
+            img_collection_array[idx] = square_exp
+        
+        if idx_i % 100 == 0:
+             print(f'{idx_i}/{end_i} lines done')
+           
+    print('Creating predictions')
+                            
+    # apply model at once
+    # pred_img = model(img_collection_tensor)
+    
+    # build up the prediction image in batches of 1000
+    batch_size = 1000
+    num_batches = int(np.ceil(img_collection_array.shape[0] / batch_size))    
+    # flattened pred image with one-hot coding
+    pred_img = np.zeros([img_collection_array.shape[0], 6])
+    # pred_img = torch.zeros((img_collection_tensor.shape[0], 6), requires_grad=False).to("mps")
+    for batch_idx in range(num_batches):
+        # batch_idx = 0
+        # batch_idx += 1
+        
+        start_idx = batch_idx * batch_size
+        end_idx = min(start_idx + batch_size, img_collection_array.shape[0])
+        
+        # apply model
+        current_input = torch.from_numpy(img_collection_array[start_idx:end_idx].astype(np.float32)).to("mps")
+        current_pred = model(current_input)
+        
+        # save it to applicable location
+        # conversion to numpy necessary, otherwise memory heavy (crash)
+        pred_img[start_idx:end_idx] = current_pred.cpu().detach().numpy()
+        
+        if batch_idx % 100 == 0:
+            print(f'Batch {batch_idx+1}/{num_batches} done')
+    
+    # apply argmax
+    pred_img_int = np.argmax(pred_img, axis=1)
+    
+    # use reshape to get same dimensions as original image
+    output_img = pred_img_int.reshape((end_i-start_i), (end_j-start_j))
     
     
 def showsidebyside():
@@ -149,4 +176,45 @@ def showsidebyside():
     # histogram of the unique values in output_img
     
     counts
+    
+    
+######### OLD
+
+
+def applymodeltoimageOLD(img, SIZE_HALF=14):
+    
+    image_sizei = img.shape[0]
+    image_sizej = img.shape[1]
+
+    start_i = SIZE_HALF+1
+    start_j = SIZE_HALF+1
+    end_i   = image_sizei - SIZE_HALF
+    end_j   = image_sizej - SIZE_HALF
+
+    output_img = np.zeros_like(img, dtype=np.int8)
+    for idx_i in range(start_i, end_i):
+        for idx_j in range(start_j, end_j):
+            # idx_i = SIZE_HALF+1; idx_j = SIZE_HALF+1
+            
+            # define the square
+            square = img[(idx_i-SIZE_HALF):(idx_i+SIZE_HALF+1), (idx_j-SIZE_HALF):(idx_j+SIZE_HALF+1)].astype(np.float32)
+            square_exp = np.expand_dims(square, axis=0) # expects shape [1, 29, 29]
+            
+            # convert to tensor
+            square_tensor = torch.from_numpy(square_exp).to("mps")
+                # plt.imshow(square); plt.show(); plt.close()
+                        
+            # apply model
+            pred = model(square_tensor)
+            # get the index of the max value
+            pred_idx = torch.argmax(pred, dim=1)
+            # convert to python integer
+            pred_idx = int(pred_idx.item())
+            
+            output_img[idx_i, idx_j] = pred_idx
+            
+        if ((idx_i) % 10) == 0:
+            print(f'{idx_i}/{end_i} lines done ({round(idx_i/end_i*100,1)}%).')
+            unique, counts = np.unique(output_img, return_counts=True)
+            print(counts)
     
