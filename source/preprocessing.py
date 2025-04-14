@@ -333,7 +333,8 @@ def return_testset_array_manual(img_sel=None):
     '''
     
     SAMPLES_TO_RETURN = 50
-    img_sel = [0]
+    if img_sel == None:
+        img_sel = [0]
     
     input_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/'
     annot_dir = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_humanannotated/'
@@ -342,13 +343,14 @@ def return_testset_array_manual(img_sel=None):
     complete_label_table = build_labels_and_positions(annot_dir, annot_pixelcount_list, list_allimgpaths, list_annotfilepaths)
     
     # create selection if desired
-    if not img_sel == None:
+    if not (img_sel == None):
+        # selection 1 for the image(s)
         complete_label_table_sel = complete_label_table[:, np.isin(complete_label_table[0,:],img_sel)]
+        # print(f'Selected {(complete_label_table_sel.shape)} from {complete_label_table.shape}')
     else:
         complete_label_table_sel = complete_label_table        
     
-    # export all images to an easy working folder
-    nr_of_images = complete_label_table_sel.shape[1]
+    # export all images to an easy working folder    
     list_all_images_collected = np.zeros([SAMPLES_TO_RETURN, 29, 29], dtype=np.uint8)
     
     # create a random shuffled index for complete_label_table_sel along 1st dim
@@ -356,11 +358,11 @@ def return_testset_array_manual(img_sel=None):
     shuffled_indices = np.arange(complete_label_table_sel.shape[1])
     np.random.shuffle(shuffled_indices)
     shuffled_indices_sel = shuffled_indices[:SAMPLES_TO_RETURN]
+    # second selection (now with the sampled positions)
+    complete_label_table_sel = complete_label_table_sel[:, shuffled_indices_sel]
     
-    for loop_idx in range(SAMPLES_TO_RETURN):
+    for img_idx in range(SAMPLES_TO_RETURN):
         # loop_idx = 0
-                        
-        img_idx = shuffled_indices_sel[loop_idx]                    
                         
         filename_img = list_allimgpaths[complete_label_table_sel[0,img_idx]]
         posi=complete_label_table_sel[1,img_idx]
@@ -372,9 +374,9 @@ def return_testset_array_manual(img_sel=None):
                         posj=posj)    
                 
         if img_idx % 1000 == 0:
-            print('Percentage done:', round(100*img_idx/nr_of_images,1))
+            print('Percentage done:', round(100*img_idx/SAMPLES_TO_RETURN,1))
         
-        list_all_images_collected[loop_idx,:,:] = img_crop
+        list_all_images_collected[img_idx,:,:] = img_crop
         
     
     return(list_all_images_collected, complete_label_table_sel)

@@ -177,6 +177,40 @@ def showsidebyside():
     
     counts
     
+
+def sanitycheckwithdata():
+    '''
+    Apply the model to the dataset that was used for training and testing.
+    '''
+    
+    import importlib; importlib.reload(cheepre)
+    
+    list_all_images_collected, complete_label_table_sel  = cheepre.return_testset_array_manual([1]) 
+    # add 1 additional axis to list_all_images_collected
+    list_all_images_collected = np.array(list_all_images_collected)
+    list_all_images_collected = np.expand_dims(list_all_images_collected, axis=1)
+        
+    testimgs_torch_array = torch.from_numpy(list_all_images_collected.astype(np.float32)).to("mps")
+    
+    # show a single image
+    img_forshow = list_all_images_collected[2,0,:,:]
+    img_forshow = testimgs_torch_array[2,0,:,:].detach().to("cpu").numpy()
+    plt.imshow(img_forshow); plt.show(); plt.close()
+    complete_label_table_sel[3,2]
+    
+    # Let's try to generate random data and see what happens
+    # testimgs_torch_array = torch.rand(50, 1, 29, 29, device="mps") # random image as test input
+    
+    # now apply the model to testimgs_torch_array
+    current_pred = model(testimgs_torch_array).detach().to("cpu").numpy()
+        
+    # apply argmax
+    pred_img_int = np.argmax(current_pred, axis=1)
+    
+    # actual labels
+    complete_label_table_sel[3,:]
+    
+
     
 ######### OLD
 
