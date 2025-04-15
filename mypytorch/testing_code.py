@@ -10,6 +10,7 @@ def examplecode():
     import importlib; importlib.reload(mt); importlib.reload(md); importlib.reload(mm)
 
     from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
+    from torchvision.transforms import ToTensor, Lambda
 
     import torch
 
@@ -28,6 +29,18 @@ def examplecode():
                                 transform=ToTensor(), 
                                 target_transform=Lambda(lambda y: torch.zeros(6, dtype=torch.float).scatter_(0, torch.tensor(y), value=1)))
         
+    # Split the dataset
+    # Define the sizes of the splits
+    total_size = len(mydataset)
+    train_size = int(0.8 * total_size)  # 80% for training
+    val_size = total_size - train_size   # 20% for validation
+    # Split the dataset manually, simply taking the first train_size samples
+    train_dataset = torch.utils.data.Subset(mydataset, range(train_size))
+    val_dataset = torch.utils.data.Subset(mydataset, range(train_size, total_size))
+        
+    
+        
+        
     image, label = mydataset[0]        
     image.shape
         
@@ -43,6 +56,17 @@ def examplecode():
     TOTAL_TESTSAMPLES = int(10_000)
     BATCH_SIZE        = 64
     NUM_TESTBATCHES   = int(np.ceil(TOTAL_TESTSAMPLES/64))
+
+
+    # get the first 10 samples in mydataset
+    for i in range(10):
+        print(mydataset[i][0].shape, mydataset[i][1])
+    # create a subset of mydataset, mydataset_subset, with only the first 10 samples
+    mydataset_subset = torch.utils.data.Subset(mydataset, range(100_000))
+    # create a subset based on the vector SELECTION
+    SELECTION = np.array([True, True, True, False, False, False, False, False, False, False])
+    mydataset_subset = torch.utils.data.Subset(mydataset, np.where(SELECTION)[0])
+    
 
 
     #########

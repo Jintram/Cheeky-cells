@@ -1,9 +1,10 @@
 
+
 # Load applicable library
 import os
 import torch
 from torch import nn
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, WeightedRandomSampler
 from torchvision import datasets, transforms
 
 from PIL import Image
@@ -18,6 +19,7 @@ sys.path.append('/Users/m.wehrens/Documents/git_repos/_UVA/2025_Cheeky-cells/')
 import source.preprocessing as cheepre
 
 import mypytorch.mymodels as mm
+import mypytorch.mytrainer as mt
 
 import seaborn as sns
 
@@ -45,6 +47,10 @@ def loadmodel():
     PATH='/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/pytorchmodel_CNN_90pct_2025-04-10_18-16.pth'
     model = mm.CNN((1, 29, 29),6).to("mps")
     
+    # The 86% model, trained on reproducibly shuffled data
+    PATH = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/pytorchmodel_CNN_86pct_2025-04-14_15-59.pth'
+    model = mm.CNN((1, 29, 29),6).to("mps")
+    
     model.load_state_dict(torch.load(PATH, weights_only=True))
     model.eval()
     # sum(p.numel() for p in model.parameters())
@@ -57,13 +63,17 @@ def loadimage():
     filepath='/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/resizedTo20_2x Cellen 3 (20x vegroting).jpg'
     # image that was trained on
     filepath='/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/resizedTo20_Cellen tellen, 10x foto 1.jpg'
-    filepath='/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/resizedTo20_10x viv wang mb 2.jpg'
     img = Image.open(filepath)
     img = np.array(img)
+    
+    # also load the annotation
+    filepath_annot = filepath.replace('.jpg', '_seg.npy').replace('_grey','_humanannotated')
+    img_annot = np.load(filepath_annot)
     
     return img    
     
 def applymodeltoimage_batchmode(img):
+
     SIZE_HALF=14
     
     image_sizei = img.shape[0]
@@ -119,7 +129,8 @@ def applymodeltoimage_batchmode(img):
         end_idx = min(start_idx + batch_size, img_collection_array.shape[0])
         
         # apply model
-        current_input = torch.from_numpy(img_collection_array[start_idx:end_idx].astype(np.float32)).to("mps")
+        # DIVIDE BY 255 TO NORMALIZE!
+        current_input = torch.from_numpy(img_collection_array[start_idx:end_idx].astype(np.float32)/255).to("mps")
         current_pred = model(current_input)
         
         # save it to applicable location
@@ -137,11 +148,10 @@ def applymodeltoimage_batchmode(img):
     
     
 def showsidebyside():
-        
-    # convert color_palette to cmap
-    cmap = ListedColormap(color_palette)
-    
+            
     thecategories = ['unclassified', 'background', 'cell border', 'intercell border', 'cell cytoplasm', 'nuclei']
+    # convert color_palette to cmap
+    cmap = ListedColormap(color_palette[:len(thecategories)])
     
     theunique, thecounts = np.unique(output_img, return_counts=True)
     categories_as_int = np.arange(len(thecategories))
@@ -150,8 +160,12 @@ def showsidebyside():
 
     fig, ax = plt.subplots(1, 2, figsize=(10*cm_to_inch, 5*cm_to_inch))
     ax[0].imshow(img)
-    ax[1].imshow(output_img, cmap=cmap, vmin=0, vmax=np.max(categories_as_int)+1)
-    plt.show(); plt.close()
+    im = ax[1].imshow(output_img, cmap=cmap, vmin=thebins[0], vmax=thebins[-1])
+    # Add color legend
+    if False:
+        cbar = fig.colorbar(im, ax=ax[1], ticks=categories_as_int, orientation='vertical')
+    #cbar.ax.set_yticklabels(thecategories)
+    plt.show(); plt.close()  
     
     fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
     sns.barplot(x=categories_as_int, y=thebincounts, ax=ax, palette=color_palette)
@@ -165,13 +179,29 @@ def showsidebyside():
     fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
     sns.barplot(y=categories_as_int, x=thebincounts, ax=ax, palette=color_palette, orient='h')
     for idx in range(len(thecategories)):
-        ax.text(max(thebincounts)/100, idx, str(thecategories[idx]), color='black', ha='left', va='center', rotation=0)
+        ax.text(.2, idx, str(thecategories[idx]), color='black', ha='left', va='center', rotation=0)
     ax.tick_params(axis='y', rotation=0)    
     ax.set_ylabel('Category'); ax.set_xlabel('Times observed')
     # set log scale for x
     ax.set_xscale('log')
+    ax.set_xlim([.1, np.max(thebincounts)*2])
     plt.tight_layout()
     plt.show(); plt.close()
+    
+    # create alpha map for img_annot
+    thealphamap = np.zeros_like(img_annot, dtype=np.float32)
+    thealphamap[img_annot>0] = 1
+    
+    # now also show the ground truth, img_annot
+    fig, ax = plt.subplots(1, 1, figsize=(10*cm_to_inch, 5*cm_to_inch))
+    ax.imshow(img, cmap='gray', vmin=0, vmax=255)
+    ax.imshow(img_annot, cmap=cmap, vmin=thebins[0], vmax=thebins[-1], alpha=thealphamap)
+    #cbar.ax.set_yticklabels(thecategories)
+    # save to desktop
+    #plt.savefig('/Users/m.wehrens/Desktop/overlay.pdf', dpi=300)
+    plt.show(); plt.close()  
+    
+    
     
     # histogram of the unique values in output_img
     
@@ -210,7 +240,90 @@ def sanitycheckwithdata():
     # actual labels
     complete_label_table_sel[3,:]
     
+def sanitycheckwithdatasetclass():
+    
+    # Get the dataset
+    ANNOT_DIR = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_humanannotated/'
+    IMG_DIR   = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_grey/'
+    mydataset = md.CustomImageDataset(annot_dir=ANNOT_DIR, 
+                                img_dir=IMG_DIR, 
+                                transform=ToTensor(), 
+                                target_transform=Lambda(lambda y: torch.zeros(6, dtype=torch.float).scatter_(0, torch.tensor(y), value=1)),
+                                preload_imgs=True)
+    
+    total_size = len(mydataset)
+    train_size = int(0.8 * total_size)  # 80% for training
 
+    # Split the dataset manually, simply taking the first train_size samples
+    train_dataset = torch.utils.data.Subset(mydataset, range(train_size))
+    val_dataset = torch.utils.data.Subset(mydataset, range(train_size, total_size))
+
+    # Also subset the weights
+    train_weights  = mydataset.labels[:train_size]
+    val_weights    = mydataset.labels[train_size:total_size]
+    
+    # set samplers
+    sampler_train = WeightedRandomSampler(train_weights, num_samples=len(train_dataset), replacement=True)
+    sampler_val   = WeightedRandomSampler(val_weights,   num_samples=len(val_dataset),   replacement=True)
+
+    # Create data loaders
+    #train_loader = DataLoader(train_dataset, batch_size=64, shuffle=False, 
+    #                        sampler=sampler_train) # untested
+
+    generator = torch.Generator().manual_seed(42)
+    val_loader = DataLoader(val_dataset, batch_size=64, shuffle=False)
+    
+    # get the first 64 samples as a test set
+    X, y = next(iter(val_loader))
+    pred = model(X)
+    pred_img_int = pred.argmax(1).to('cpu').numpy()
+    truth_loader = y.argmax(1).to('cpu').numpy()
+    pct_correct = np.sum(pred_img_int==truth_loader)/64
+    
+    ###
+    # now get those same samples using the dataset object
+    sanity_img_idxs = mydataset.img_idxs[train_size:total_size]
+    sanity_posis = mydataset.posis[train_size:total_size]
+    sanity_posjs = mydataset.posjs[train_size:total_size]
+    sanity_labels = mydataset.labels[train_size:total_size]
+    truth_samples = sanity_labels[:64]
+    
+    # sanity check labels
+    np.all(truth_loader==truth_samples)
+
+    SAMPLES_TO_RETURN = 64
+    list_all_images_collected = np.zeros([SAMPLES_TO_RETURN, 29, 29], dtype=np.float32)
+
+    for img_idx in range(SAMPLES_TO_RETURN):
+    # img_idx = 0
+                    
+        filename_img = list_allimgpaths[sanity_img_idxs[img_idx]]
+        posi=sanity_posis[img_idx]
+        posj=sanity_posjs[img_idx]
+                                
+        img_crop = provide_crop(input_folder=input_folder, 
+                        filename_img = filename_img,
+                        posi=posi, 
+                        posj=posj)                
+
+        list_all_images_collected[img_idx,:,:] = img_crop/255
+    
+    # now convert this to tensor
+    X_man = np.expand_dims(list_all_images_collected, axis=1)
+    X_man = torch.from_numpy(X_man.astype(np.float32)).to("mps")
+    X_man_0 = X_man[0,0,:,:]
+    X_0 = X[0,0,:,:]
+    X_man_0==X_0
+    
+    X_man_0[:10,0]/255
+    X_0[:10,0]
+    
+    # now apply model
+    pred_man = model(X)
+    # convert to numpy
+    pred_man = pred_man.cpu().detach().numpy()
+    # apply argmax
+    pred_img_int_man = np.argmax(current_pred, axis=1)
     
 ######### OLD
 

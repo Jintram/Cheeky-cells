@@ -28,7 +28,7 @@ import mypytorch.dataset_classes as md
 # /Users/m.wehrens/Documents/git_repos/_UVA/2025_MW-testing-ML/simple-tutorial.ipynb
 
 class CustomImageDataset(Dataset):
-    def __init__(self, annot_dir, img_dir, transform=None, target_transform=None, targetdevice="mps", preload_imgs=False):#, add_dim=False):
+    def __init__(self, annot_dir, img_dir, transform=None, target_transform=None, targetdevice="mps", preload_imgs=False, MYSEED=42):#, add_dim=False):
         
         self.annot_dir = annot_dir
         self.img_dir = img_dir
@@ -56,7 +56,7 @@ class CustomImageDataset(Dataset):
         # now manually shuffle the dataset
         # (I do this manually to also allow weighted sampling later)
         # (shuffle=True and weighed sampling are mutually exclusive)
-        # np.random.seed(42)
+        np.random.seed(MYSEED)
         shuffle_indices = np.arange(len(self.labels))
         np.random.shuffle(shuffle_indices)
         # # now shuffle all the information
@@ -64,6 +64,12 @@ class CustomImageDataset(Dataset):
         self.posis    = self.posis[shuffle_indices]
         self.posjs    = self.posjs[shuffle_indices]
         self.labels   = self.labels[shuffle_indices]
+        
+        # now determine weights 
+        label_frequency = np.bincount(self.labels)
+        weights_for_samples = 1.0 / label_frequency
+        weights_for_samples[label_frequency==0] = 0 # counters div 0
+        self.weights = weights_for_samples[self.labels]  # Assign a weight to each sample
         
         # transforms        
         self.transform = transform
@@ -93,3 +99,6 @@ class CustomImageDataset(Dataset):
         # REMOVED: image already had size (1, 29, 29)
             
         return image.to(self.targetdevice), label.to(self.targetdevice)
+
+
+
