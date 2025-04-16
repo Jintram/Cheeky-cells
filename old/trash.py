@@ -1,5 +1,31 @@
 
             
+
+def edgedetectionstuff():
+
+    # some edge detection stuff
+    # trying out something else
+    tiles_maxfiltsmall = [maximum_filter(tile, size=20) for tile in tiles]
+    tiles_norm_small = [tile/tile_mf for tile,tile_mf in zip(tiles, tiles_maxfiltsmall)]
+    plt.imshow(tiles_norm_small[0]); plt.show(); plt.close()
+
+    # apply sobel for edge detection on tile 0
+    sobel_tile = sk.filters.sobel(tiles[0])
+    plt.imshow(sobel_tile); plt.show(); plt.close()
+
+    # resize tile 0 to 20x smaller using max
+    tile_0_small = sk.transform.rescale(tiles[0], 0.2, order=0, anti_aliasing=False)
+    # apply sobel
+    sobel_tile_0_small = sk.filters.sobel(tile_0_small)
+    plt.imshow(sobel_tile_0_small); plt.show(); plt.close()
+
+        
+    # now identify the tile with the most variance
+    # for each of the tiles, apply a local max filter of size 250
+
+
+
+
 def annotate_pictures_REMOVE(input_folder, output_folder=None):
     # input_folder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized/'
     ''''
