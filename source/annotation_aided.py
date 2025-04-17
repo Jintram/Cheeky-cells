@@ -1,5 +1,5 @@
 
-
+#################################################################################
 
 import os
 import napari
@@ -24,7 +24,7 @@ import pandas as pd
 
 cm_to_inch = 1/2.54
 
-
+#################################################################################
 
 def show_current_annot(initial_seg_folder, list_all_annotfiles, img_cells):
     '''Get the current annotation and show both'''
@@ -42,7 +42,8 @@ def show_current_annot(initial_seg_folder, list_all_annotfiles, img_cells):
     plt.tight_layout()
     plt.show()
 
-def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None):
+
+def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, tile_selection_by='maxvar'):
     
     # now split the img_cells in an array with 2000x2000 tiles
     row_splits = np.array_split(img_cells, img_cells.shape[0] // 2000, axis=0)
@@ -56,13 +57,25 @@ def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None):
     tiles_norm = [tile/tile_mf for tile,tile_mf in zip(tiles, tiles_maxfilt)] 
         # plt.imshow(tiles_norm[0]); plt.show(); plt.close()
     
-    # identify tile with most variance in normalized thingy
+    # identify tile that we'll select, either by max variance or signal
     def getnnonzero(anarray):
         anarray[anarray==0] = np.min(anarray)
         return anarray
-    max_variance_idx = np.argmax([np.var(getnnonzero(tile)) for tile in tiles_norm])
-        # plt.imshow(tiles_norm[max_variance_idx]); plt.show(); plt.close()
-
+    if tile_selection_by == 'maxvar':
+        print('Selecting slice with max variance')
+        idx_tile_sel = np.argmax([np.var(getnnonzero(tile)) for tile in tiles_norm])
+    elif tile_selection_by == 'maxsignal':
+        print('Selecting slice with max signal')
+        idx_tile_sel   = np.argmax([np.sum(getnnonzero(tile)) for tile in tiles])
+        # plt.imshow(tiles_norm[idx_tile_sel]); plt.show(); plt.close()
+    elif tile_selection_by == 'maxarea3bg':
+        print('Selecting slice with max area > 3*background (determined by percentile)')
+        idx_tile_sel = np.argmax([np.sum(getnnonzero(tile)>np.percentile(getnnonzero(tile), .02)*3) for tile in tiles])
+    else:
+        print('Invalid option!')
+        return None
+        
+    
     # now also select the correspdoning segmentation region 
     if not img_annot == None:
         tiles_annot = [np.array_split(row, row.shape[1] // 2000, axis=1) for row in 
@@ -71,16 +84,16 @@ def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None):
     
         # plot side by side
         fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
-        ax.imshow(tiles_norm[max_variance_idx])
-        ax.contour(tiles_annot[max_variance_idx], levels=[0.5], colors='white')
+        ax.imshow(tiles_norm[idx_tile_sel])
+        ax.contour(tiles_annot[idx_tile_sel], levels=[0.5], colors='white')
         plt.show(); plt.close()
-
+    
     # generate a new segmentation of the tile based on otsu method
     def subtractbaseline(anarray, est_base_pct=.2):
         thresholdlow = np.percentile(anarray, est_base_pct)
         anarray[anarray<=thresholdlow] = thresholdlow
         return anarray
-    current_tile_log = subtractbaseline(np.log(tiles[max_variance_idx] + .1))
+    current_tile_log = subtractbaseline(np.log(tiles[idx_tile_sel] + .1))
     thresholdval = threshold_otsu(current_tile_log)-1
     img_segmaskauto = current_tile_log > thresholdval
     thresholdval2 = threshold_otsu(current_tile_log[img_segmaskauto])
@@ -88,55 +101,60 @@ def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None):
     fig, ax = plt.subplots(1, 2, figsize=(5*cm_to_inch, 10*cm_to_inch))
     ax[0].imshow(current_tile_log)
     ax[0].contour(img_segmaskauto, levels=[0.5], colors='red')
-    ax[1].imshow(tiles[max_variance_idx])
+    ax[1].imshow(tiles[idx_tile_sel])
     ax[1].contour(img_segmaskauto, levels=[0.5], colors='white')
     plt.show(); plt.close()
     
     if showedgepic:
         # edge image from the local normalization
         fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
-        ax.imshow(tiles_norm[max_variance_idx])
+        ax.imshow(tiles_norm[idx_tile_sel])
         ax.contour(img_segmaskauto, levels=[0.5], colors='red')    
         plt.show(); plt.close()
-
+    
     # remove small objects 
     img_seg0_tile = remove_small_objects(img_segmaskauto, min_size=20**2)
     
     # pic of cells
-    img_cells_tile = tiles[max_variance_idx]
+    img_cells_tile = tiles[idx_tile_sel]
+    img_cells_tile_edges = tiles_norm[idx_tile_sel]
     
-    return img_cells_tile, img_seg0_tile
+    return img_cells_tile, img_seg0_tile, img_cells_tile_edges
 
 
-def annotate_pictures_aided(input_folder, initial_seg_folder, output_folder=None):
+################################################################################
+
+
+def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selection_by = 'maxvar', ignore_saved_file=False):
     '''
     This function was never called, but executed line by line manually.
     '''
     
-    input_folder = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/20250328_FLUOPPI/'
-    initial_seg_folder = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/ANALYSES/analysis_202504_V2files_Exp-20250328/seg_20250313_135502/segmentation/'
-    output_seg_folder = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/'
-    metadata_file = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/metadata_Fluoppi_data20250328.xlsx'
+    if folderconfig==None:
+        folderconfig = {
+            'input_folder': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/20250328_FLUOPPI/',
+            'initial_seg_folder': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/ANALYSES/analysis_202504_V2files_Exp-20250328/seg_20250313_135502/segmentation/',
+            'output_seg_folder': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/',
+            'metadata_file': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/metadata_Fluoppi_data20250328.xlsx'}
+        
+    input_folder       = folderconfig['input_folder']
+    initial_seg_folder = folderconfig['initial_seg_folder']
+    output_seg_folder  = folderconfig['output_seg_folder']
+    metadata_file      = folderconfig['metadata_file']
     
     os.makedirs(output_seg_folder, exist_ok=True)
-    
-    global continue_loop
-    continue_loop = True
-    
+        
     # Load metadata, get filenames
     metadata_table = pd.read_excel(metadata_file)
     list_all_imgfiles = metadata_table['filename'].values
     list_all_annotfiles = [P.replace('.nd2','_seg.npy') for P in list_all_imgfiles]
     
-    # # Get input images
-    # list_all_annotfiles = glob.glob(initial_seg_folder + '/*')
-    # # Now convert to file list
-    # filenames_annot = [P.split('/')[-1] for P in list_all_annotfiles]
-    # # Also get basefilenames
-    # basefilenames_annot = [P.replace('_seg.npy','') for P in filenames_annot]
-    
     # now load first image and annotation
-    FILE_IDX=5
+    FILE_IDX=5 # This should be made input of this function
+    if not FILE_IDX_user == None: 
+        FILE_IDX = FILE_IDX_user
+        
+    # Load data
     img_fluop, img_cells = flrw.get_my_image_split(metadata_table, FILE_IDX)
     
     # Show current annotation if desired
@@ -144,87 +162,63 @@ def annotate_pictures_aided(input_folder, initial_seg_folder, output_folder=None
         show_current_annot(initial_seg_folder, list_all_annotfiles, img_cells)
     
     # Get high-var ±2000px tile and 
-    img_cells_tile, img_seg0_tile = annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None)
+    img_cells_tile, img_seg0_tile, img_cells_tile_edges = annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, tile_selection_by=tile_selection_by)
     
-
-    # to continue with an image:
-    outputfilename = list_all_annotfiles[FILE_IDX].replace('_seg.npy','_annothuman.npy')
-    if os.path.exists(output_seg_folder + outputfilename):
-        img_seg0 = np.load(output_seg_folder + outputfilename, allow_pickle=True)
-
-    
-    
-    # now improve this image in napari
-    viewer = napari.Viewer()
-    viewer.add_image(tiles[max_variance_idx])
-
-    # add a label layer                           
-    seg_layer = viewer.add_labels(name='segmentation', data=img_seg0)
-    # viewer.close()
-    
-    # now save the annotation data
-    seg_layer_data = seg_layer.data
+    # prepare output file names
     newfilename_annot = list_all_annotfiles[FILE_IDX].replace('_seg.npy','_tile_annothuman.npy')
     newfilename_img   = list_all_annotfiles[FILE_IDX].replace('_seg.npy','_tile_img.npy')
     newfilename_extra = list_all_annotfiles[FILE_IDX].replace('_seg.npy','_tile_transform.npy')
+    
+    # if seg file already exists, load it (assumes also other files match)
+    if os.path.exists(output_seg_folder + newfilename_annot) and (not ignore_saved_file):
+        print('Loaded image seg file:', newfilename_annot)
+        img_seg0_tile = np.load(output_seg_folder + newfilename_annot, allow_pickle=True)
+            # plt.imshow(img_seg0_tile); plt.show(); plt.close()
+
+    # now improve this image in napari
+    viewer = napari.Viewer()
+    viewer.add_image(img_cells_tile)
+
+    # add a label layer                           
+    seg_layer = viewer.add_labels(name='segmentation', data=img_seg0_tile)
+    # viewer.close()
+    # napari.run()
+        
+    # now save the annotation data
+    print('Saving annotation data')
+    seg_layer_data = seg_layer.data
     np.save(output_seg_folder + newfilename_annot, seg_layer_data)
-    np.save(output_seg_folder + newfilename_img, tiles[max_variance_idx])
-    np.save(output_seg_folder + newfilename_extra, tiles_norm[max_variance_idx])
+    np.save(output_seg_folder + newfilename_img, img_cells_tile)
+    np.save(output_seg_folder + newfilename_extra, img_cells_tile_edges)
     
     # plot the result
     fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
-    ax.imshow(tiles[max_variance_idx])
+    ax.imshow(img_cells_tile)
     ax.contour(seg_layer_data, levels=[0.5], colors='red')    
     plt.show(); plt.close()
+
+
+def perform_seg():    
     
-    #####
-    # BELOW PART WASN'T USED YET..
+    folderconfig = {
+        'input_folder': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/20250328_FLUOPPI/',
+        'initial_seg_folder': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/ANALYSES/analysis_202504_V2files_Exp-20250328/seg_20250313_135502/segmentation/',
+        'output_seg_folder': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/',
+        'metadata_file': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/metadata_Fluoppi_data20250328.xlsx'}
+            
+    # methods: {maxarea3bg, maxvar, maxsignal}
+            
+    annotate_pictures_aided(FILE_IDX_user=5, folderconfig=folderconfig)
     
-    # Loop over images in Napari, saving the annotated images
-    # Stop the loop when SHIFT+Q is pressed in Napari
+    annotate_pictures_aided(FILE_IDX_user=6, folderconfig=folderconfig)
     
-    for idx, filepath in enumerate(list_all_files):
-        # idx=0; filepath=list_all_files[0]
-        filename = filepath.split('/')[-1]
-        annotfilepath = os.path.splitext(filename)[0] + '_seg.npy'
-        
-        img = Image.open(filepath)
-        img = np.array(img)
-        
-        viewer = napari.Viewer()
-        viewer.add_image(img)
-        
-        # Load/initialize current seg
-        if os.path.exists(output_folder + annotfilepath):
-            current_seg = np.load(output_folder + annotfilepath, allow_pickle=True)
-        else:
-            current_seg = np.zeros(np.shape(img)[:2], dtype=np.uint8)
-        
-        # add a label layer                           
-        seg_layer = viewer.add_labels(name='segmentation', data=current_seg)
-                
-        # add a key binding (shift+Q) that makes 
-        @viewer.bind_key('Shift+Q', overwrite=True)
-        def stop_loop(viewer):            
-            global continue_loop
-            continue_loop = False
-            print("Loop stop requested - will exit after this image")
-            viewer.close()
-        
-        @viewer.bind_key('Shift+N', overwrite=True)
-        def next_image(viewer):
-            print("Skipping to next image")
-            viewer.close()
-        
-        # Can't do this if want to use from Jupyter
-        napari.run()
-        
-        # close napari
-        # viewer.close()
-        
-        # save the polygon layer to a numpy file
-        seg_layer_data_cleanborder = wipe_borders(seg_layer.data)
-        np.save(output_folder + annotfilepath, seg_layer_data_cleanborder)
-        if not continue_loop:
-            break
+    annotate_pictures_aided(FILE_IDX_user=7, folderconfig=folderconfig)
+    
+    annotate_pictures_aided(FILE_IDX_user=8, folderconfig=folderconfig)
+    
+    # annotate_pictures_aided(FILE_IDX_user=9, folderconfig=folderconfig, tile_selection_by='maxsignal', ignore_saved_file=True)
+    annotate_pictures_aided(FILE_IDX_user=9, folderconfig=folderconfig, tile_selection_by='maxarea3bg')
+    
+    annotate_pictures_aided(FILE_IDX_user=10, folderconfig=folderconfig, tile_selection_by='maxarea3bg')
+
     
