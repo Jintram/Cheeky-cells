@@ -18,8 +18,8 @@ import matplotlib.pyplot as plt
 sys.path.append('/Users/m.wehrens/Documents/git_repos/_UVA/2025_Cheeky-cells/')
 import source.preprocessing as cheepre
 
-import mypytorch.mymodels as mm
-import mypytorch.mytrainer as mt
+import mypytorch_pixelseg.mymodels as mm
+import mypytorch_pixelseg.mytrainer as mt
 
 import seaborn as sns
 

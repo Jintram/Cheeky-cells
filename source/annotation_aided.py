@@ -43,7 +43,7 @@ def show_current_annot(initial_seg_folder, list_all_annotfiles, img_cells):
     plt.show()
 
 
-def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, tile_selection_by='maxvar'):
+def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, tile_selection_by='maxvar', showplots=True):
     
     # now split the img_cells in an array with 2000x2000 tiles
     row_splits = np.array_split(img_cells, img_cells.shape[0] // 2000, axis=0)
@@ -83,10 +83,11 @@ def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, til
         tiles_annot = [tile for row in tiles_annot for tile in row]
     
         # plot side by side
-        fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
-        ax.imshow(tiles_norm[idx_tile_sel])
-        ax.contour(tiles_annot[idx_tile_sel], levels=[0.5], colors='white')
-        plt.show(); plt.close()
+        if showplots:
+            fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
+            ax.imshow(tiles_norm[idx_tile_sel])
+            ax.contour(tiles_annot[idx_tile_sel], levels=[0.5], colors='white')
+            plt.show(); plt.close()
     
     # generate a new segmentation of the tile based on otsu method
     def subtractbaseline(anarray, est_base_pct=.2):
@@ -98,12 +99,14 @@ def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, til
     img_segmaskauto = current_tile_log > thresholdval
     thresholdval2 = threshold_otsu(current_tile_log[img_segmaskauto])
     img_segmaskauto = current_tile_log > thresholdval2
-    fig, ax = plt.subplots(1, 2, figsize=(5*cm_to_inch, 10*cm_to_inch))
-    ax[0].imshow(current_tile_log)
-    ax[0].contour(img_segmaskauto, levels=[0.5], colors='red')
-    ax[1].imshow(tiles[idx_tile_sel])
-    ax[1].contour(img_segmaskauto, levels=[0.5], colors='white')
-    plt.show(); plt.close()
+    
+    if showplots:
+        fig, ax = plt.subplots(1, 2, figsize=(5*cm_to_inch, 10*cm_to_inch))
+        ax[0].imshow(current_tile_log)
+        ax[0].contour(img_segmaskauto, levels=[0.5], colors='red')
+        ax[1].imshow(tiles[idx_tile_sel])
+        ax[1].contour(img_segmaskauto, levels=[0.5], colors='white')
+        plt.show(); plt.close()
     
     if showedgepic:
         # edge image from the local normalization
@@ -124,8 +127,7 @@ def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, til
 
 ################################################################################
 
-
-def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selection_by = 'maxvar', ignore_saved_file=False):
+def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selection_by = 'maxvar', ignore_saved_file=False, showplots=False):
     '''
     This function was never called, but executed line by line manually.
     '''
@@ -162,7 +164,8 @@ def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selectio
         show_current_annot(initial_seg_folder, list_all_annotfiles, img_cells)
     
     # Get high-var ±2000px tile and 
-    img_cells_tile, img_seg0_tile, img_cells_tile_edges = annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, tile_selection_by=tile_selection_by)
+    img_cells_tile, img_seg0_tile, img_cells_tile_edges = \
+        annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, tile_selection_by=tile_selection_by, showplots=showplots)
     
     # prepare output file names
     newfilename_annot = list_all_annotfiles[FILE_IDX].replace('_seg.npy','_tile_annothuman.npy')
@@ -182,7 +185,7 @@ def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selectio
     # add a label layer                           
     seg_layer = viewer.add_labels(name='segmentation', data=img_seg0_tile)
     # viewer.close()
-    # napari.run()
+    napari.run()
         
     # now save the annotation data
     print('Saving annotation data')
@@ -192,10 +195,11 @@ def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selectio
     np.save(output_seg_folder + newfilename_extra, img_cells_tile_edges)
     
     # plot the result
-    fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
-    ax.imshow(img_cells_tile)
-    ax.contour(seg_layer_data, levels=[0.5], colors='red')    
-    plt.show(); plt.close()
+    if showplots:
+        fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
+        ax.imshow(img_cells_tile)
+        ax.contour(seg_layer_data, levels=[0.5], colors='red')    
+        plt.show(); plt.close()
 
 
 def perform_seg():    
@@ -207,18 +211,59 @@ def perform_seg():
         'metadata_file': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/metadata_Fluoppi_data20250328.xlsx'}
             
     # methods: {maxarea3bg, maxvar, maxsignal}
+    
+    annotate_pictures_aided(FILE_IDX_user=0, folderconfig=folderconfig)
+    annotate_pictures_aided(FILE_IDX_user=1, folderconfig=folderconfig)
+    annotate_pictures_aided(FILE_IDX_user=2, folderconfig=folderconfig)
+    annotate_pictures_aided(FILE_IDX_user=3, folderconfig=folderconfig)
+    annotate_pictures_aided(FILE_IDX_user=4, folderconfig=folderconfig)
+    
             
-    annotate_pictures_aided(FILE_IDX_user=5, folderconfig=folderconfig)
-    
-    annotate_pictures_aided(FILE_IDX_user=6, folderconfig=folderconfig)
-    
-    annotate_pictures_aided(FILE_IDX_user=7, folderconfig=folderconfig)
-    
-    annotate_pictures_aided(FILE_IDX_user=8, folderconfig=folderconfig)
+    annotate_pictures_aided(FILE_IDX_user=5, folderconfig=folderconfig) # FIXED
+    annotate_pictures_aided(FILE_IDX_user=6, folderconfig=folderconfig) # REDO!  
+    annotate_pictures_aided(FILE_IDX_user=7, folderconfig=folderconfig) # REDO!
+    annotate_pictures_aided(FILE_IDX_user=8, folderconfig=folderconfig) # REDO!
     
     # annotate_pictures_aided(FILE_IDX_user=9, folderconfig=folderconfig, tile_selection_by='maxsignal', ignore_saved_file=True)
-    annotate_pictures_aided(FILE_IDX_user=9, folderconfig=folderconfig, tile_selection_by='maxarea3bg')
-    
+    annotate_pictures_aided(FILE_IDX_user=9, folderconfig=folderconfig, tile_selection_by='maxarea3bg')    
     annotate_pictures_aided(FILE_IDX_user=10, folderconfig=folderconfig, tile_selection_by='maxarea3bg')
 
+def get_file_list_annotimgs(folderconfig):
+    
+    # Load metadata, get filenames
+    metadata_table = pd.read_excel(folderconfig['metadata_file'])
+    list_all_imgfiles_original = metadata_table['filename'].values
+    
+    # Now get the tiles
+    
+    thefilelist_imgs =  [X.replace('.nd2', '_tile_img.npy') for X in list_all_imgfiles_original]
+    thefilelist_annot = [X.replace('.nd2', '_tile_annothuman.npy') for X in list_all_imgfiles_original]
+    thefilelist_extra = [X.replace('.nd2', '_tile_transform.npy') for X in list_all_imgfiles_original]
+    
+    return thefilelist_imgs, thefilelist_annot, thefilelist_extra
+    
+
+def post_processing():
+    
+    folderconfig = {
+        'input_folder': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/20250328_FLUOPPI/',
+        'initial_seg_folder': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/ANALYSES/analysis_202504_V2files_Exp-20250328/seg_20250313_135502/segmentation/',
+        'output_seg_folder': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/',
+        'metadata_file': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/metadata_Fluoppi_data20250328.xlsx'}
+    annothuman_folder = folderconfig['output_seg_folder']
+       
+    # thepath = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/'
+    
+    thefilelist_imgs, thefilelist_annot, thefilelist_extra = get_file_list_annotimgs(folderconfig)
+    
+    # load the first one
+    # WRONG: 5, 6, 7, 8, 
+    FILE_IDX = 5
+    
+    current_img   = np.load(annothuman_folder + thefilelist_imgs[FILE_IDX], allow_pickle=True)
+    current_annot = np.load(annothuman_folder + thefilelist_annot[FILE_IDX], allow_pickle=True)
+    
+    plt.imshow(current_img)
+    plt.contour(current_annot, levels=[0.5], colors='red')    
+    plt.show(); plt.close()
     

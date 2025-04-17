@@ -5,6 +5,12 @@ import torch
 from torch import nn
 from tqdm import tqdm_notebook
 
+class Unet_custom(nn.Module):
+    
+    # MAKE THIS!!!
+    
+    pass
+
 class CNN(nn.Module):
     
     # This model comes from

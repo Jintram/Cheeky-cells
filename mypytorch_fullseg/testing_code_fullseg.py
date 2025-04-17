@@ -4,9 +4,9 @@
 
 def examplecode():
 
-    import mypytorch.mytrainer as mt
-    import mypytorch.dataset_classes as md
-    import mypytorch.mymodels as mm
+    import mypytorch_fullseg.mytrainer as mt
+    import mypytorch_fullseg.dataset_classes as md
+    import mypytorch_fullseg.mymodels as mm
     import importlib; importlib.reload(mt); importlib.reload(md); importlib.reload(mm)
 
     from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler

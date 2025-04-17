@@ -17,8 +17,8 @@ import numpy as np
 import source.preprocessing as cheepre
 
 # custom code
-import mypytorch.mymodels as mm
-import mypytorch.dataset_classes as md
+import mypytorch_fullseg.mymodels as mm
+import mypytorch_fullseg.dataset_classes as md
 
 # reload the custom libs
 # import importlib; importlib.reload(mm); importlib.reload(md); importlib.reload(cheepre)
@@ -27,7 +27,21 @@ import mypytorch.dataset_classes as md
 # https://pytorch.org/tutorials/beginner/basics/intro.html
 # /Users/m.wehrens/Documents/git_repos/_UVA/2025_MW-testing-ML/simple-tutorial.ipynb
 
-class CustomImageDataset(Dataset):
+class ImageDataset_tiles(Dataset):
+    '''
+    This dataset class is aimed to load ±2000x2000 images, and 
+    using a transformer, should then respond with 500x500 crops
+    that are randomly selected/transformed as data output.
+    
+    Since the transformer does that latter part, this dataset
+    should just load the data and the labels.
+    
+    Input training data will come from pre-processed .npy files,
+    which contain the image, the segmentation mask, and 
+    potentially another image that is pre-processed to highlight
+    specific features.
+    '''
+    
     def __init__(self, annot_dir, img_dir, transform=None, target_transform=None, targetdevice="mps", preload_imgs=False, MYSEED=42):#, add_dim=False):
         
         self.annot_dir = annot_dir
