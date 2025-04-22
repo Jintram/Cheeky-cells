@@ -14,6 +14,7 @@ from scipy.ndimage import maximum_filter
 from skimage.filters import threshold_triangle, threshold_otsu
 
 from skimage.morphology import remove_small_objects
+from skimage.exposure import rescale_intensity
 
 import matplotlib.pyplot as plt
 
@@ -42,6 +43,21 @@ def show_current_annot(initial_seg_folder, list_all_annotfiles, img_cells):
     plt.tight_layout()
     plt.show()
 
+def subtractbaseline(anarray, est_base_pct=.2):
+    thresholdlow = np.percentile(anarray, est_base_pct)
+    anarray[anarray<=thresholdlow] = thresholdlow
+    return anarray
+
+
+def image_autorescale(input_img):
+    
+    new_img = np.log(.1+subtractbaseline(input_img))
+    # rescale to range 0-255
+    new_img = rescale_intensity(new_img, 'image', (0, 255))
+    new_img = new_img.astype(np.uint8)
+    
+    return new_img
+       
 
 def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, tile_selection_by='maxvar', showplots=True):
     
@@ -90,10 +106,6 @@ def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, til
             plt.show(); plt.close()
     
     # generate a new segmentation of the tile based on otsu method
-    def subtractbaseline(anarray, est_base_pct=.2):
-        thresholdlow = np.percentile(anarray, est_base_pct)
-        anarray[anarray<=thresholdlow] = thresholdlow
-        return anarray
     current_tile_log = subtractbaseline(np.log(tiles[idx_tile_sel] + .1))
     thresholdval = threshold_otsu(current_tile_log)-1
     img_segmaskauto = current_tile_log > thresholdval
@@ -130,7 +142,12 @@ def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, til
 def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selection_by = 'maxvar', ignore_saved_file=False, showplots=False):
     '''
     This function was never called, but executed line by line manually.
+    
+    NOTE:
+    image_autorescale is now applied only before the image is shown to the user, 
+    but it might be smart to also use that input image for thresholding segmentation.
     '''
+    # tile_selection_by = 'maxvar'; ignore_saved_file=False; showplots=False
     
     if folderconfig==None:
         folderconfig = {
@@ -152,7 +169,7 @@ def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selectio
     list_all_annotfiles = [P.replace('.nd2','_seg.npy') for P in list_all_imgfiles]
     
     # now load first image and annotation
-    FILE_IDX=5 # This should be made input of this function
+    FILE_IDX=0 # This should be made input of this function
     if not FILE_IDX_user == None: 
         FILE_IDX = FILE_IDX_user
         
@@ -164,12 +181,14 @@ def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selectio
         show_current_annot(initial_seg_folder, list_all_annotfiles, img_cells)
     
     # Get high-var ±2000px tile and 
+    print('TO DO: image_autorescale is not applied before auto-segment yet!')
     img_cells_tile, img_seg0_tile, img_cells_tile_edges = \
         annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, tile_selection_by=tile_selection_by, showplots=showplots)
     
     # prepare output file names
     newfilename_annot = list_all_annotfiles[FILE_IDX].replace('_seg.npy','_tile_annothuman.npy')
     newfilename_img   = list_all_annotfiles[FILE_IDX].replace('_seg.npy','_tile_img.npy')
+    newfilename_img_enhanced   = list_all_annotfiles[FILE_IDX].replace('_seg.npy','_tile_img_enhanced.npy')
     newfilename_extra = list_all_annotfiles[FILE_IDX].replace('_seg.npy','_tile_transform.npy')
     
     # if seg file already exists, load it (assumes also other files match)
@@ -180,7 +199,8 @@ def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selectio
 
     # now improve this image in napari
     viewer = napari.Viewer()
-    viewer.add_image(img_cells_tile)
+    img_cells_tile_enhanced = image_autorescale(img_cells_tile)
+    viewer.add_image(img_cells_tile_enhanced)
 
     # add a label layer                           
     seg_layer = viewer.add_labels(name='segmentation', data=img_seg0_tile)
@@ -193,6 +213,7 @@ def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selectio
     np.save(output_seg_folder + newfilename_annot, seg_layer_data)
     np.save(output_seg_folder + newfilename_img, img_cells_tile)
     np.save(output_seg_folder + newfilename_extra, img_cells_tile_edges)
+    np.save(output_seg_folder + newfilename_img_enhanced, img_cells_tile_enhanced)
     
     # plot the result
     if showplots:
@@ -200,8 +221,10 @@ def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selectio
         ax.imshow(img_cells_tile)
         ax.contour(seg_layer_data, levels=[0.5], colors='red')    
         plt.show(); plt.close()
+    
 
 
+# THE ANNOTATION FUNCTION
 def perform_seg():    
     
     folderconfig = {
@@ -212,21 +235,25 @@ def perform_seg():
             
     # methods: {maxarea3bg, maxvar, maxsignal}
     
-    annotate_pictures_aided(FILE_IDX_user=0, folderconfig=folderconfig)
-    annotate_pictures_aided(FILE_IDX_user=1, folderconfig=folderconfig)
-    annotate_pictures_aided(FILE_IDX_user=2, folderconfig=folderconfig)
-    annotate_pictures_aided(FILE_IDX_user=3, folderconfig=folderconfig)
+    annotate_pictures_aided(FILE_IDX_user=0, folderconfig=folderconfig) # REVISED
+    annotate_pictures_aided(FILE_IDX_user=1, folderconfig=folderconfig) # REVISED
+    annotate_pictures_aided(FILE_IDX_user=2, folderconfig=folderconfig) # REVISED
+    annotate_pictures_aided(FILE_IDX_user=3, folderconfig=folderconfig) # REVISED
     annotate_pictures_aided(FILE_IDX_user=4, folderconfig=folderconfig)
-    
-            
-    annotate_pictures_aided(FILE_IDX_user=5, folderconfig=folderconfig) # FIXED
-    annotate_pictures_aided(FILE_IDX_user=6, folderconfig=folderconfig) # REDO!  
-    annotate_pictures_aided(FILE_IDX_user=7, folderconfig=folderconfig) # REDO!
-    annotate_pictures_aided(FILE_IDX_user=8, folderconfig=folderconfig) # REDO!
+                
+    annotate_pictures_aided(FILE_IDX_user=5, folderconfig=folderconfig) 
+    annotate_pictures_aided(FILE_IDX_user=6, folderconfig=folderconfig) 
+    annotate_pictures_aided(FILE_IDX_user=7, folderconfig=folderconfig) 
+    annotate_pictures_aided(FILE_IDX_user=8, folderconfig=folderconfig) 
     
     # annotate_pictures_aided(FILE_IDX_user=9, folderconfig=folderconfig, tile_selection_by='maxsignal', ignore_saved_file=True)
     annotate_pictures_aided(FILE_IDX_user=9, folderconfig=folderconfig, tile_selection_by='maxarea3bg')    
     annotate_pictures_aided(FILE_IDX_user=10, folderconfig=folderconfig, tile_selection_by='maxarea3bg')
+
+
+
+
+
 
 def get_file_list_annotimgs(folderconfig):
     
@@ -241,7 +268,7 @@ def get_file_list_annotimgs(folderconfig):
     thefilelist_extra = [X.replace('.nd2', '_tile_transform.npy') for X in list_all_imgfiles_original]
     
     return thefilelist_imgs, thefilelist_annot, thefilelist_extra
-    
+         
 
 def post_processing():
     
@@ -249,8 +276,12 @@ def post_processing():
         'input_folder': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/20250328_FLUOPPI/',
         'initial_seg_folder': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/ANALYSES/analysis_202504_V2files_Exp-20250328/seg_20250313_135502/segmentation/',
         'output_seg_folder': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/',
-        'metadata_file': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/metadata_Fluoppi_data20250328.xlsx'}
+        'metadata_file': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/metadata_Fluoppi_data20250328.xlsx',
+        'plotdir': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/_plots/'}
+    
     annothuman_folder = folderconfig['output_seg_folder']
+    plotdir = folderconfig['plotdir']
+    os.makedirs(plotdir, exist_ok=True)
        
     # thepath = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/'
     
@@ -258,12 +289,18 @@ def post_processing():
     
     # load the first one
     # WRONG: 5, 6, 7, 8, 
-    FILE_IDX = 5
+    for FILE_IDX in range(11):
+        # FILE_IDX = 0
     
-    current_img   = np.load(annothuman_folder + thefilelist_imgs[FILE_IDX], allow_pickle=True)
-    current_annot = np.load(annothuman_folder + thefilelist_annot[FILE_IDX], allow_pickle=True)
-    
-    plt.imshow(current_img)
-    plt.contour(current_annot, levels=[0.5], colors='red')    
-    plt.show(); plt.close()
+        current_img   = np.load(annothuman_folder + thefilelist_imgs[FILE_IDX], allow_pickle=True)
+        current_annot = np.load(annothuman_folder + thefilelist_annot[FILE_IDX], allow_pickle=True)
+        
+        new_img = image_autorescale(current_img)
+        
+        fig, ax = plt.subplots(1, 1, figsize=(20*cm_to_inch, 20*cm_to_inch))
+        ax.imshow(new_img)
+        ax.contour(current_annot, levels=[0.5], colors='red')    
+        plt.tight_layout()
+        plt.savefig(plotdir + thefilelist_imgs[FILE_IDX].replace('.npy', '_groundtruthhuman.pdf'), dpi=300)
+        plt.close(fig)
     
