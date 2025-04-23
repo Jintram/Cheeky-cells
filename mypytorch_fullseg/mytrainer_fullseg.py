@@ -3,7 +3,7 @@ import torch
 
 
 def train_loop(dataloader, model, loss_fn, optimizer, TOTAL_SAMPLES, BATCH_SIZE):
-    # dataloader=train_loader; model=modelCNN
+    # dataloader=train_loader; model=modelUNet
     
     loss_tracker = []
     # Set the model to training mode - important for batch normalization and dropout layers
@@ -37,11 +37,12 @@ def train_loop(dataloader, model, loss_fn, optimizer, TOTAL_SAMPLES, BATCH_SIZE)
             
             
 def test_loop(dataloader, model, loss_fn, NUM_TESTBATCHES):
+    # dataloader = val_loader
     
     # Set the model to evaluation mode - important for batch normalization and dropout layers
     # Unnecessary in this situation but added for best practices
     model.eval()
-    size = NUM_TESTBATCHES*64 # len(dataloader.dataset)
+    size = 3 # FIX THIS??!?
     num_batches = NUM_TESTBATCHES # len(dataloader)
     test_loss, correct = 0, 0
     
@@ -51,6 +52,7 @@ def test_loop(dataloader, model, loss_fn, NUM_TESTBATCHES):
     # also serves to reduce unnecessary gradient computations and memory usage for tensors with requires_grad=True
     with torch.no_grad():
         for batch_idx, (X, y) in enumerate(dataloader):
+            # batch_idx = 0; (X, y) = next(iter(dataloader))
             
             if batch_idx>num_batches:
                 break
@@ -60,7 +62,7 @@ def test_loop(dataloader, model, loss_fn, NUM_TESTBATCHES):
             pred = model(X)
             test_loss += loss_fn(pred, y).item()
             # correct += (pred.argmax(1) == y).type(torch.float).sum().item()
-            correct += (y.argmax(1) == pred.argmax(1)).type(torch.float).sum().item()        
+            correct += ((y == pred.argmax(1)).type(torch.float).sum().item()) / (np.prod(y.shape))
 
     test_loss /= num_batches
     correct /= size

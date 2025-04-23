@@ -11,14 +11,15 @@ from torchvision.io import read_image
 from torch.utils.data import Dataset, DataLoader, WeightedRandomSampler
 from torchvision.transforms import ToTensor, Lambda
 from torch.optim.lr_scheduler import StepLR
+import torchvision.transforms as transforms
 
 import numpy as np
 
-import source.preprocessing as cheepre
+from PIL import Image
 
 # custom code
-import mypytorch_fullseg.mymodels as mm
-import mypytorch_fullseg.dataset_classes as md
+# import mypytorch_fullseg.mymodels_fullseg as mm
+# import mypytorch_fullseg.dataset_classes_fullseg as md
 
 # reload the custom libs
 # import importlib; importlib.reload(mm); importlib.reload(md); importlib.reload(cheepre)
@@ -26,6 +27,33 @@ import mypytorch_fullseg.dataset_classes as md
 # Based on tutorial and notebook listed below
 # https://pytorch.org/tutorials/beginner/basics/intro.html
 # /Users/m.wehrens/Documents/git_repos/_UVA/2025_MW-testing-ML/simple-tutorial.ipynb
+
+
+def get_file_list_annotimgs_dloader(metadata_file, train_or_test):
+    '''
+    '''
+    
+    # Load metadata, get filenames
+    metadata_table = pd.read_excel(metadata_file)
+    bool_selection_metadata = metadata_table['train_or_test'] == train_or_test
+    if bool_selection_metadata.sum() == 0:
+        raise ValueError(f"No entries found for {train_or_test} in metadata file.")
+    
+    print(f'Selecting {bool_selection_metadata.sum()} samples for {train_or_test}')
+    metadata_table_sel = metadata_table[bool_selection_metadata]
+    
+    # Get all sample names
+    list_all_imgfiles_original = metadata_table_sel['filename'].values
+    
+    # And the corresponding saved annotated data files
+    thefilelist_imgs =  [X.replace('.nd2', '_tile_img.npy') for X in list_all_imgfiles_original]
+    thefilelist_annot = [X.replace('.nd2', '_tile_annothuman.npy') for X in list_all_imgfiles_original]
+    thefilelist_extra = [X.replace('.nd2', '_tile_transform.npy') for X in list_all_imgfiles_original]
+    thefilelist_enhanced = [X.replace('.nd2', '_tile_img_enhanced.npy') for X in list_all_imgfiles_original]
+    thefilelist_annot_features = [X.replace('.nd2', '_tile_annothuman_features.npy') for X in list_all_imgfiles_original]
+    
+    return thefilelist_imgs, thefilelist_annot, thefilelist_extra, thefilelist_enhanced, thefilelist_annot_features
+         
 
 class ImageDataset_tiles(Dataset):
     '''
@@ -42,77 +70,70 @@ class ImageDataset_tiles(Dataset):
     specific features.
     '''
     
-    def __init__(self, annot_dir, img_dir, transform=None, target_transform=None, targetdevice="mps", preload_imgs=False, MYSEED=42):#, add_dim=False):
+    def __init__(self, annot_dir, metadata_file, train_or_test, transform=None, transform_target=None, 
+                 targetdevice="mps"):#, add_dim=False):
         
+        # first get lists of all the files that are required
+        self.thefilelist_imgs, \
+        self.thefilelist_annot, \
+        self.thefilelist_extra, \
+        self.thefilelist_enhanced, \
+        self.thefilelist_annot_features = \
+                get_file_list_annotimgs_dloader(metadata_file, train_or_test=train_or_test)
+                # metadata_file='/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/metadata_Fluoppi_data20250328_MACHINELEARN.xlsx'
+        
+        # directory and device
         self.annot_dir = annot_dir
-        self.img_dir = img_dir
         self.targetdevice = targetdevice
-        self.preload_imgs = preload_imgs
-        # self.add_dim = add_dim # toggle to add extra dimension at start
-            
-        # get dataset info
-        annot_pixelcount_list, list_allimgpaths, list_annotfilepaths = cheepre.acquire_trainingset_info(img_dir, annot_dir)
-        self.annot_pixelcount_list = annot_pixelcount_list
-        self.img_list = list_allimgpaths
-        self.img_annot_list = list_annotfilepaths
-        
-        # get dataset img_idx, locx, locy, label
-        self.img_idxs, self.posis, self.posjs, self.labels = \
-            cheepre.build_labels_and_positions(annot_dir, annot_pixelcount_list, list_allimgpaths, list_annotfilepaths)
-        self.labels = self.labels.astype(int)
-        
-        if self.preload_imgs:                 
-            self.largeimgs = \
-                {filename_img: cheepre.provide_img(img_dir, filename_img) for filename_img in list_allimgpaths}
-                # get object size for the above dict
-                # sys.getsizeof({filename_img: cheepre.provide_img(img_dir, filename_img) for filename_img in list_allimgpaths})
-                
-        # now manually shuffle the dataset
-        # (I do this manually to also allow weighted sampling later)
-        # (shuffle=True and weighed sampling are mutually exclusive)
-        np.random.seed(MYSEED)
-        shuffle_indices = np.arange(len(self.labels))
-        np.random.shuffle(shuffle_indices)
-        # # now shuffle all the information
-        self.img_idxs = self.img_idxs[shuffle_indices]
-        self.posis    = self.posis[shuffle_indices]
-        self.posjs    = self.posjs[shuffle_indices]
-        self.labels   = self.labels[shuffle_indices]
-        
-        # now determine weights 
-        label_frequency = np.bincount(self.labels)
-        weights_for_samples = 1.0 / label_frequency
-        weights_for_samples[label_frequency==0] = 0 # counters div 0
-        self.weights = weights_for_samples[self.labels]  # Assign a weight to each sample
         
         # transforms        
         self.transform = transform
-        self.target_transform = target_transform
+        self.transform_target = transform_target
+        
+        # amount of samples to return
+        self.num_samples = len(self.thefilelist_imgs)
 
     def __len__(self):
-        return len(self.labels)
+        return self.num_samples
 
     def __getitem__(self, idx):
         
         # now produce the label and the image
-        label = self.labels[idx]
-        if self.preload_imgs:
-            image = cheepre.provide_crop_img(self.largeimgs[self.img_list[self.img_idxs[idx]]], self.posis[idx], self.posjs[idx])
-        else:
-            image = cheepre.provide_crop(self.img_dir, self.img_list[self.img_idxs[idx]], self.posis[idx], self.posjs[idx])
+        image   = np.load(self.annot_dir + self.thefilelist_enhanced[idx], allow_pickle=True)
+        label   = np.load(self.annot_dir + self.thefilelist_annot_features[idx], allow_pickle=True)
         
         # transform
         if self.transform:
-            image = self.transform(image)
+            # apply same transformation to both input and annotation
+            shared_seed = torch.randint(0, 4294967296, (1,)).item() # 4294967296 = 2**32
             
-        if self.target_transform:
-            label = self.target_transform(label)
-        
-        #if self.add_dim:
-        #    image = image.unsqueeze(0)
-        # REMOVED: image already had size (1, 29, 29)
+            torch.manual_seed(shared_seed)
+            image = self.transform(image)
+            torch.manual_seed(shared_seed)
+            label = self.transform_target(label)
             
         return image.to(self.targetdevice), label.to(self.targetdevice)
 
 
 
+# additionally, define some transforms to apply to the images
+# Define the augmentation pipeline
+augmentation_pipeline_input = transforms.Compose([
+    transforms.Lambda(lambda x: Image.fromarray(x)), # convert to PIL image
+    transforms.RandomCrop((500, 500)),  # Randomly crop 500x500 patches
+    transforms.RandomHorizontalFlip(p=0.5),  # Random horizontal flip
+    transforms.RandomVerticalFlip(p=0.5),  # Random vertical flip
+    transforms.RandomRotation(degrees=45),  # Random rotation within ±45 degrees    
+    transforms.ToTensor(),  # Convert to PyTorch tensor
+    # could add some normalization if desired    
+    # transforms.Normalize(mean=[0.5], std=[0.5])  # Normalize (example for grayscale)
+])
+
+augmentation_pipeline_target = transforms.Compose([
+    transforms.Lambda(lambda x: Image.fromarray(x)), # convert to PIL image
+    transforms.RandomCrop((500, 500)),  # Randomly crop 500x500 patches
+    transforms.RandomHorizontalFlip(p=0.5),  # Random horizontal flip
+    transforms.RandomVerticalFlip(p=0.5),  # Random vertical flip
+    transforms.RandomRotation(degrees=45),  # Random rotation within ±45 degrees    
+    transforms.Lambda(lambda x: torch.tensor(np.array(x), dtype=torch.long))  # Convert to LongTensor
+])

@@ -260,6 +260,11 @@ def perform_seg():
 
 
 def get_file_list_annotimgs(folderconfig):
+    '''
+    # required input example
+    folderconfig = {
+        'metadata_file': '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/metadata_Fluoppi_data20250328.xlsx'}
+    '''
     
     # Load metadata, get filenames
     metadata_table = pd.read_excel(folderconfig['metadata_file'])
@@ -270,8 +275,9 @@ def get_file_list_annotimgs(folderconfig):
     thefilelist_annot = [X.replace('.nd2', '_tile_annothuman.npy') for X in list_all_imgfiles_original]
     thefilelist_extra = [X.replace('.nd2', '_tile_transform.npy') for X in list_all_imgfiles_original]
     thefilelist_enhanced = [X.replace('.nd2', '_tile_img_enhanced.npy') for X in list_all_imgfiles_original]
+    thefilelist_annot_features = [X.replace('.nd2', '_tile_annothuman_features.npy') for X in list_all_imgfiles_original]
     
-    return thefilelist_imgs, thefilelist_annot, thefilelist_extra, thefilelist_enhanced
+    return thefilelist_imgs, thefilelist_annot, thefilelist_extra, thefilelist_enhanced, thefilelist_annot_features
          
 
 def update_seg_extrannot(initial_annotation_human):
@@ -328,9 +334,11 @@ def update_seg_extrannot(initial_annotation_human):
         # plt.imshow(img_boundaries); plt.show(); plt.close()
     
     # Now create the final image, using the identified cell edges and proximity zones
-    annotation_feature_labeled = np.copy(initial_annotation_human)
-    annotation_feature_labeled[img_boundaries>0] = 2
-    annotation_feature_labeled[img_proximityzones>0] = 3    
+    annotation_feature_labeled = np.zeros_like(initial_annotation_human)
+    # notice that order is important, img_proximityzones overlaps w/ original, needs to go first
+    annotation_feature_labeled[img_proximityzones>0] = 3
+    annotation_feature_labeled[initial_annotation_human>0] = 1
+    annotation_feature_labeled[img_boundaries>0] = 2    
         # plt.imshow(annotation_feature_labeled); plt.show(); plt.close()
     
     end_time = int(time.time())
@@ -353,7 +361,9 @@ def post_processing():
        
     # thepath = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/'
     
-    thefilelist_imgs, thefilelist_annot, thefilelist_extra, thefilelist_enhanced = get_file_list_annotimgs(folderconfig)
+    thefilelist_imgs, thefilelist_annot, thefilelist_extra, \
+        thefilelist_enhanced, thefilelist_annot_features = \
+                                get_file_list_annotimgs(folderconfig)
     
     # load the first one
     # WRONG: 5, 6, 7, 8, 
@@ -376,10 +386,10 @@ def post_processing():
         # FILE_IDX = 0
     
         current_img_enhanced   = np.load(annothuman_folder + thefilelist_enhanced[FILE_IDX], allow_pickle=True)
-        current_annot = np.load(annothuman_folder + thefilelist_annot[FILE_IDX], allow_pickle=True)
+        current_annot          = np.load(annothuman_folder + thefilelist_annot[FILE_IDX], allow_pickle=True)
         
         # now get improved annotation
-        print('Processing sample', thefilelist_annot[FILE_IDX])
+        print('Processing sample', thefilelist_annot[FILE_IDX],'(', FILE_IDX, ')')
         current_annot_withfeatures = update_seg_extrannot(current_annot)
         
         # now save the result
