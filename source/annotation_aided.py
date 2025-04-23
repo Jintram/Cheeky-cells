@@ -13,8 +13,10 @@ import skimage as sk
 from scipy.ndimage import maximum_filter
 from skimage.filters import threshold_triangle, threshold_otsu
 
-from skimage.morphology import remove_small_objects
+from skimage.morphology import remove_small_objects, label
 from skimage.exposure import rescale_intensity
+
+import time
 
 import matplotlib.pyplot as plt
 
@@ -106,15 +108,16 @@ def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, til
             plt.show(); plt.close()
     
     # generate a new segmentation of the tile based on otsu method
-    current_tile_log = subtractbaseline(np.log(tiles[idx_tile_sel] + .1))
-    thresholdval = threshold_otsu(current_tile_log)-1
-    img_segmaskauto = current_tile_log > thresholdval
-    thresholdval2 = threshold_otsu(current_tile_log[img_segmaskauto])
-    img_segmaskauto = current_tile_log > thresholdval2
+    #current_tile_log = subtractbaseline(np.log(tiles[idx_tile_sel] + .1))
+    current_tile_rescaled = image_autorescale(tiles[idx_tile_sel])
+    thresholdval = threshold_otsu(current_tile_rescaled)-1
+    img_segmaskauto = current_tile_rescaled > thresholdval
+    thresholdval2 = threshold_otsu(current_tile_rescaled[img_segmaskauto])
+    img_segmaskauto = current_tile_rescaled > thresholdval2
     
     if showplots:
         fig, ax = plt.subplots(1, 2, figsize=(5*cm_to_inch, 10*cm_to_inch))
-        ax[0].imshow(current_tile_log)
+        ax[0].imshow(current_tile_rescaled)
         ax[0].contour(img_segmaskauto, levels=[0.5], colors='red')
         ax[1].imshow(tiles[idx_tile_sel])
         ax[1].contour(img_segmaskauto, levels=[0.5], colors='white')
@@ -132,9 +135,10 @@ def annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, til
     
     # pic of cells
     img_cells_tile = tiles[idx_tile_sel]
+    img_cells_tile_rescaled = current_tile_rescaled
     img_cells_tile_edges = tiles_norm[idx_tile_sel]
     
-    return img_cells_tile, img_seg0_tile, img_cells_tile_edges
+    return img_cells_tile, img_seg0_tile, img_cells_tile_edges, img_cells_tile_rescaled
 
 
 ################################################################################
@@ -181,8 +185,8 @@ def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selectio
         show_current_annot(initial_seg_folder, list_all_annotfiles, img_cells)
     
     # Get high-var ±2000px tile and 
-    print('TO DO: image_autorescale is not applied before auto-segment yet!')
-    img_cells_tile, img_seg0_tile, img_cells_tile_edges = \
+    # print('TO DO: image_autorescale is not applied before auto-segment yet!') # done with img_cells_tile_rescaled
+    img_cells_tile, img_seg0_tile, img_cells_tile_edges, img_cells_tile_rescaled = \
         annothelp_tile_and_segment(img_cells, showedgepic=False, img_annot=None, tile_selection_by=tile_selection_by, showplots=showplots)
     
     # prepare output file names
@@ -199,8 +203,8 @@ def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selectio
 
     # now improve this image in napari
     viewer = napari.Viewer()
-    img_cells_tile_enhanced = image_autorescale(img_cells_tile)
-    viewer.add_image(img_cells_tile_enhanced)
+    # img_cells_tile_rescaled = image_autorescale(img_cells_tile)
+    viewer.add_image(img_cells_tile_rescaled)
 
     # add a label layer                           
     seg_layer = viewer.add_labels(name='segmentation', data=img_seg0_tile)
@@ -213,7 +217,7 @@ def annotate_pictures_aided(FILE_IDX_user=None, folderconfig=None, tile_selectio
     np.save(output_seg_folder + newfilename_annot, seg_layer_data)
     np.save(output_seg_folder + newfilename_img, img_cells_tile)
     np.save(output_seg_folder + newfilename_extra, img_cells_tile_edges)
-    np.save(output_seg_folder + newfilename_img_enhanced, img_cells_tile_enhanced)
+    np.save(output_seg_folder + newfilename_img_enhanced, img_cells_tile_rescaled)
     
     # plot the result
     if showplots:
@@ -239,16 +243,16 @@ def perform_seg():
     annotate_pictures_aided(FILE_IDX_user=1, folderconfig=folderconfig) # REVISED
     annotate_pictures_aided(FILE_IDX_user=2, folderconfig=folderconfig) # REVISED
     annotate_pictures_aided(FILE_IDX_user=3, folderconfig=folderconfig) # REVISED
-    annotate_pictures_aided(FILE_IDX_user=4, folderconfig=folderconfig)
+    annotate_pictures_aided(FILE_IDX_user=4, folderconfig=folderconfig) # REVISED
                 
-    annotate_pictures_aided(FILE_IDX_user=5, folderconfig=folderconfig) 
-    annotate_pictures_aided(FILE_IDX_user=6, folderconfig=folderconfig) 
-    annotate_pictures_aided(FILE_IDX_user=7, folderconfig=folderconfig) 
-    annotate_pictures_aided(FILE_IDX_user=8, folderconfig=folderconfig) 
+    annotate_pictures_aided(FILE_IDX_user=5, folderconfig=folderconfig) # REVISED
+    annotate_pictures_aided(FILE_IDX_user=6, folderconfig=folderconfig) # REVISED
+    annotate_pictures_aided(FILE_IDX_user=7, folderconfig=folderconfig) # REVISED
+    annotate_pictures_aided(FILE_IDX_user=8, folderconfig=folderconfig) # REVISED
     
     # annotate_pictures_aided(FILE_IDX_user=9, folderconfig=folderconfig, tile_selection_by='maxsignal', ignore_saved_file=True)
-    annotate_pictures_aided(FILE_IDX_user=9, folderconfig=folderconfig, tile_selection_by='maxarea3bg')    
-    annotate_pictures_aided(FILE_IDX_user=10, folderconfig=folderconfig, tile_selection_by='maxarea3bg')
+    annotate_pictures_aided(FILE_IDX_user=9, folderconfig=folderconfig, tile_selection_by='maxarea3bg') # REVISED
+    annotate_pictures_aided(FILE_IDX_user=10, folderconfig=folderconfig, tile_selection_by='maxarea3bg') # REVISED
 
 
 
@@ -262,14 +266,78 @@ def get_file_list_annotimgs(folderconfig):
     list_all_imgfiles_original = metadata_table['filename'].values
     
     # Now get the tiles
-    
     thefilelist_imgs =  [X.replace('.nd2', '_tile_img.npy') for X in list_all_imgfiles_original]
     thefilelist_annot = [X.replace('.nd2', '_tile_annothuman.npy') for X in list_all_imgfiles_original]
     thefilelist_extra = [X.replace('.nd2', '_tile_transform.npy') for X in list_all_imgfiles_original]
+    thefilelist_enhanced = [X.replace('.nd2', '_tile_img_enhanced.npy') for X in list_all_imgfiles_original]
     
-    return thefilelist_imgs, thefilelist_annot, thefilelist_extra
+    return thefilelist_imgs, thefilelist_annot, thefilelist_extra, thefilelist_enhanced
          
 
+def update_seg_extrannot(initial_annotation_human):
+    '''
+    Based on simply binary mask with non-touching cells, 
+    create a segmentation with additional annotation:
+    Output is labeled image with:
+    0. Background
+    1. Cell area
+    2. Cell boundary
+    3. Proximity zones, where cells (almost) touch
+    
+    NOTE
+    This function is extremely slow due to the many dilation operations.
+    This could be sped up by isolating cells into bboxes, expand, and 
+    update only the corresponding bbox in the target image. 
+    I did this before. 
+    '''
+    # initial_annotation_human=current_annot
+    
+    print('Working on sample..')
+    start_time = int(time.time())
+    
+    # first get labeled mask and the unique labels
+    mask_labeled = label(initial_annotation_human)
+    the_labels = np.unique(mask_labeled[mask_labeled>0])
+    
+    # loop over each region, expand it, and add it to a new image
+    # overlapping regions will get values > 1
+    img_labels_intermediate = np.zeros_like(initial_annotation_human)
+    disk10 = sk.morphology.disk(10)
+    for current_label in the_labels:
+        # current_label = the_labels[0]
+        
+        # mask for current region
+        current_mask = mask_labeled == current_label        
+        # expand by 10 pixels
+        current_mask_exp = sk.morphology.binary_dilation(current_mask, disk10)        
+        # add the mask to the image
+        img_labels_intermediate += current_mask_exp.astype(np.uint8)
+        
+        if current_label % 10 == 0:
+            print('Number of processed cells:', current_label)
+    
+    # determine zones were cells almost touch, proximity zones
+    img_proximityzones = img_labels_intermediate>1    
+        # plt.imshow(img_labels_intermediate); plt.show(); plt.close()    
+        # plt.imshow(img_touchingzones); plt.show(); plt.close()
+    
+    # Now identify the cell edges; 
+    # This is simpler: subtract eroded from original
+    disk5 = sk.morphology.disk(5)
+    img_boundaries = initial_annotation_human - sk.morphology.binary_erosion(initial_annotation_human, disk5)
+        # plt.imshow(img_boundaries); plt.show(); plt.close()
+    
+    # Now create the final image, using the identified cell edges and proximity zones
+    annotation_feature_labeled = np.copy(initial_annotation_human)
+    annotation_feature_labeled[img_boundaries>0] = 2
+    annotation_feature_labeled[img_proximityzones>0] = 3    
+        # plt.imshow(annotation_feature_labeled); plt.show(); plt.close()
+    
+    end_time = int(time.time())
+    print('Function took ', end_time-start_time, 'seconds to execute.')
+    
+    return annotation_feature_labeled
+    
 def post_processing():
     
     folderconfig = {
@@ -285,7 +353,7 @@ def post_processing():
        
     # thepath = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/'
     
-    thefilelist_imgs, thefilelist_annot, thefilelist_extra = get_file_list_annotimgs(folderconfig)
+    thefilelist_imgs, thefilelist_annot, thefilelist_extra, thefilelist_enhanced = get_file_list_annotimgs(folderconfig)
     
     # load the first one
     # WRONG: 5, 6, 7, 8, 
@@ -303,4 +371,19 @@ def post_processing():
         plt.tight_layout()
         plt.savefig(plotdir + thefilelist_imgs[FILE_IDX].replace('.npy', '_groundtruthhuman.pdf'), dpi=300)
         plt.close(fig)
+        
+    for FILE_IDX in range(11):
+        # FILE_IDX = 0
+    
+        current_img_enhanced   = np.load(annothuman_folder + thefilelist_enhanced[FILE_IDX], allow_pickle=True)
+        current_annot = np.load(annothuman_folder + thefilelist_annot[FILE_IDX], allow_pickle=True)
+        
+        # now get improved annotation
+        print('Processing sample', thefilelist_annot[FILE_IDX])
+        current_annot_withfeatures = update_seg_extrannot(current_annot)
+        
+        # now save the result
+        np.save(annothuman_folder + thefilelist_annot[FILE_IDX].replace('.npy', '_features.npy'), current_annot_withfeatures)
+
+        
     
