@@ -1,6 +1,7 @@
 
 import torch
 import numpy as np
+import math 
 
 def train_loop(dataloader, model, loss_fn, optimizer, dataset_len, BATCH_SIZE):
     # dataloader=train_loader; model=modelUNet
@@ -46,7 +47,7 @@ def test_loop(dataloader, model, loss_fn, dataset_len, BATCH_SIZE):
     
     # Evaluating the model with torch.no_grad() ensures that no gradients are computed during test mode
     # also serves to reduce unnecessary gradient computations and memory usage for tensors with requires_grad=True
-    nr_batches = dataset_len // BATCH_SIZE
+    nr_batches = math.ceil(dataset_len / BATCH_SIZE)
     with torch.no_grad():
         for batch_idx, (X, y) in enumerate(dataloader):
             # batch_idx = 0; (X, y) = next(iter(dataloader))

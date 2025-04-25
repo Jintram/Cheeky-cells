@@ -17,21 +17,22 @@ def examplecode():
     from torch.optim.lr_scheduler import StepLR
 
     import torch
-    import datetime, time    
+    import time    
     
     cm_to_inch = 1/2.54
 
     # test loading the data, without transformer
     ANNOT_DIR='/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/'
     METADATA_FILE='/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/metadata_Fluoppi_data20250328_MACHINELEARN.xlsx'
+    SIZE_ARTIFICIAL = 1000
     mydataset_test = md.ImageDataset_tiles(annot_dir=ANNOT_DIR, metadata_file=METADATA_FILE, train_or_test='test', 
                                            transform = md.augmentation_pipeline_input, 
                                            transform_target=md.augmentation_pipeline_target, 
-                                            targetdevice="mps")
+                                            targetdevice="mps", SIZE_ARTIFICIAL = SIZE_ARTIFICIAL)
     mydataset_train = md.ImageDataset_tiles(annot_dir=ANNOT_DIR, metadata_file=METADATA_FILE, train_or_test='train', 
                                            transform = md.augmentation_pipeline_input, 
                                            transform_target=md.augmentation_pipeline_target, 
-                                            targetdevice="mps")
+                                            targetdevice="mps", SIZE_ARTIFICIAL = SIZE_ARTIFICIAL)
     
     # Load and display the first datapoint, for testing
     current_img, current_lbl = mydataset_test[0]
@@ -132,7 +133,7 @@ def examplecode():
         start_time = time.time()
         
         # train and test
-        loss_tracker = mt.train_loop(train_loader, modelUNet, loss_fn, optimizer, len(mydataset_train), BATCH_SIZE)
+        loss_tracker    = mt.train_loop(train_loader, modelUNet, loss_fn, optimizer, len(mydataset_train), BATCH_SIZE)
         current_correct = mt.test_loop(val_loader, modelUNet, loss_fn, len(mydataset_test), BATCH_SIZE)
         
         # update scheduler
@@ -143,10 +144,10 @@ def examplecode():
         list_correct.append(current_correct)
         
         end_time = time.time()
-        elapsed_time = str(datetime.timedelta(seconds=elapsed_time))
+        elapsed_time = time.strftime("%Hh:%Mm:%Ss", time.gmtime(end_time - start_time))
         print(f"Epoch {t+1} completed in {elapsed_time}..")
     
     end_time_overall = time.time()
-    elapsed_time_overall = str(datetime.timedelta(seconds=end_time_overall-start_time_overall))
+    elapsed_time_overall = time.strftime("%Hh:%Mm:%Ss", time.gmtime(end_time_overall - start_time_overall))
     print(f"Training completed in {elapsed_time_overall}..")
     print("Done!")
