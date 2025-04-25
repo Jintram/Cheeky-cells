@@ -71,7 +71,7 @@ class ImageDataset_tiles(Dataset):
     '''
     
     def __init__(self, annot_dir, metadata_file, train_or_test, transform=None, transform_target=None, 
-                 targetdevice="mps"):#, add_dim=False):
+                 targetdevice="mps", SIZE_ARTIFICIAL=1000):#, add_dim=False):
         
         # first get lists of all the files that are required
         self.thefilelist_imgs, \
@@ -90,17 +90,23 @@ class ImageDataset_tiles(Dataset):
         self.transform = transform
         self.transform_target = transform_target
         
-        # amount of samples to return
+        # amount of actual samples
         self.num_samples = len(self.thefilelist_imgs)
+        # amount of samples it will say it have, set to SIZE_ARTIFICIAL unless more actual samples 
+        self.len_augment = max(len(self.thefilelist_imgs), SIZE_ARTIFICIAL)
 
     def __len__(self):
-        return self.num_samples
+        return self.len_augment
 
     def __getitem__(self, idx):
         
+        # idx will run higher than actual nr of samples thanks to augmentation
+        # but to keep sampling underlying samples evenly, use modulo
+        sample_idx = idx % self.num_samples
+        
         # now produce the label and the image
-        image   = np.load(self.annot_dir + self.thefilelist_enhanced[idx], allow_pickle=True)
-        label   = np.load(self.annot_dir + self.thefilelist_annot_features[idx], allow_pickle=True)
+        image   = np.load(self.annot_dir + self.thefilelist_enhanced[sample_idx], allow_pickle=True)
+        label   = np.load(self.annot_dir + self.thefilelist_annot_features[sample_idx], allow_pickle=True)
         
         # transform
         if self.transform:
@@ -119,21 +125,23 @@ class ImageDataset_tiles(Dataset):
 # additionally, define some transforms to apply to the images
 # Define the augmentation pipeline
 augmentation_pipeline_input = transforms.Compose([
-    transforms.Lambda(lambda x: Image.fromarray(x)), # convert to PIL image
-    transforms.RandomCrop((500, 500)),  # Randomly crop 500x500 patches
+    transforms.Lambda(lambda x: Image.fromarray(x)), # convert to PIL image    
     transforms.RandomHorizontalFlip(p=0.5),  # Random horizontal flip
     transforms.RandomVerticalFlip(p=0.5),  # Random vertical flip
     transforms.RandomRotation(degrees=45),  # Random rotation within ±45 degrees    
+    transforms.RandomCrop((500, 500)),  # Randomly crop 500x500 patches
+        # note: crop could be done first to speed things up, but then cropping results
+        # results in many sliced cells with edges that are not annotated ideally.
     transforms.ToTensor(),  # Convert to PyTorch tensor
     # could add some normalization if desired    
     # transforms.Normalize(mean=[0.5], std=[0.5])  # Normalize (example for grayscale)
 ])
 
 augmentation_pipeline_target = transforms.Compose([
-    transforms.Lambda(lambda x: Image.fromarray(x)), # convert to PIL image
-    transforms.RandomCrop((500, 500)),  # Randomly crop 500x500 patches
+    transforms.Lambda(lambda x: Image.fromarray(x)), # convert to PIL image    
     transforms.RandomHorizontalFlip(p=0.5),  # Random horizontal flip
     transforms.RandomVerticalFlip(p=0.5),  # Random vertical flip
     transforms.RandomRotation(degrees=45),  # Random rotation within ±45 degrees    
+    transforms.RandomCrop((500, 500)),  # Randomly crop 500x500 patches
     transforms.Lambda(lambda x: torch.tensor(np.array(x), dtype=torch.long))  # Convert to LongTensor
 ])
