@@ -54,6 +54,28 @@ def get_file_list_annotimgs_dloader(metadata_file, train_or_test):
     
     return thefilelist_imgs, thefilelist_annot, thefilelist_extra, thefilelist_enhanced, thefilelist_annot_features
          
+def get_label_frequencies_train(metadata_file, annot_dir):
+    # annot_dir='/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/'
+    # metadata_file='/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/metadata_Fluoppi_data20250328_MACHINELEARN.xlsx'
+        
+    thefilelist_imgs, \
+    thefilelist_annot, \
+    thefilelist_extra, \
+    thefilelist_enhanced, \
+    thefilelist_annot_features = \
+        get_file_list_annotimgs_dloader(metadata_file, 'train')
+    
+    counts_all=np.array([0]*4)
+    for sample_idx in range(len(thefilelist_enhanced)):
+        # sample_idx=0
+        # load image
+        current_annot = np.load(annot_dir + thefilelist_annot_features[sample_idx], allow_pickle=True)
+        # count frequency of values in the image
+        unique, counts = np.unique(current_annot, return_counts=True)
+        counts_all += counts
+    
+    return (counts_all)
+    
 
 class ImageDataset_tiles(Dataset):
     '''
