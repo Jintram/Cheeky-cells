@@ -109,6 +109,7 @@ def examplecode():
         
         # let's see result after test loop
         current_img, current_lbl = mydataset_train[1]
+        current_img, current_lbl = mydataset_test[0]
         X = current_img[None, :, :, :] 
         logits = modelUNet(X) # "logits" refers to raw, unnormalized outputs of the final layer of a neural network
         # plot the result
@@ -126,6 +127,13 @@ def examplecode():
             ax[idx].set_xticks([]); ax[idx].set_yticks([])
         plt.show(); plt.close()
         
+        # Overlay prediction on top input
+        fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
+        ax.imshow(current_img[0], cmap='gray')    
+        ax.contour((current_prd[0].argmax(0)==1), levels=[.5], colors='red')
+        ax.set_xticks([]); ax.set_yticks([])
+        plt.show(); plt.close()
+
         # Also see the different categories
         fig, axs = plt.subplots(1,5)#, figsize=(15*cm_to_inch, 5*cm_to_inch))
         axs.flatten()[0].set_title('Input')
@@ -144,13 +152,15 @@ def examplecode():
     # define fn
     def custom_lr_schedule(epoch):
         ''' returns the learning rate scaling factor for the given epoch '''
-        lr_scalefactor = [1]*10 + [.1]*10 + [.01]*10 
+        lr_scalefactor = [1]*50 + [.1]*50 + [.01]*50 
+        if epoch >= 150:
+            epoch = 149
         return lr_scalefactor[epoch]    
     # define scheduler
     scheduler = LambdaLR(optimizer, lr_lambda=custom_lr_schedule)
     
     # training loop
-    epochs = 30 # 30
+    epochs = 150 # 30
     list_loss_tracker = []
     list_correct = []
     start_time_overall = time.time()
@@ -185,14 +195,12 @@ def examplecode():
     torch.save(modelUNet.state_dict(), DIR_SAVE_MODELS+'modelUNet'+current_time_formatted+'.pth')
     
     # Now plot the loss over time
-    import matplotlib.pyplot as plt
-    import numpy as np
-
     datay = np.array(list_loss_tracker).flatten()
     datax = np.array(range(len(datay)))*100
     plt.plot(datax, datay)
     plt.ylim([0, np.max(datay)*1.1])
-    datax[-1]
+    plt.axvline(datax[-1]/3)
+    plt.axvline(datax[-1]/3*2)
 
     # and also plot the list_correct
     data_correctx = np.linspace(datax[-1]/epochs, datax[-1], epochs)
