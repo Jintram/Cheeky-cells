@@ -104,8 +104,8 @@ def examplecode():
     # 1 loop execution for testing
     # dataloader=train_loader; model=modelCNN
     if False:
-        loss_tracker = mt.train_loop(train_loader, modelUNet, loss_fn, optimizer, len(mydataset_train), BATCH_SIZE)
-        current_correct = mt.test_loop(val_loader, modelUNet, loss_fn, len(mydataset_test), BATCH_SIZE)
+        #loss_tracker = mt.train_loop(train_loader, modelUNet, loss_fn, optimizer, len(mydataset_train), BATCH_SIZE)
+        #current_correct = mt.test_loop(val_loader, modelUNet, loss_fn, len(mydataset_test), BATCH_SIZE)
         
         # let's see result after test loop
         current_img, current_lbl = mydataset_train[1]
@@ -197,10 +197,10 @@ def examplecode():
     # Now plot the loss over time
     datay = np.array(list_loss_tracker).flatten()
     datax = np.array(range(len(datay)))*100
-    plt.plot(datax, datay)
+    plt.plot(datax, datay, color='black')
     plt.ylim([0, np.max(datay)*1.1])
-    plt.axvline(datax[-1]/3)
-    plt.axvline(datax[-1]/3*2)
+    plt.axvline(datax[-1]/3, linestyle='--', color='black')
+    plt.axvline(datax[-1]/3*2, linestyle='--', color='black')
 
     # and also plot the list_correct
     data_correctx = np.linspace(datax[-1]/epochs, datax[-1], epochs)
