@@ -20,4 +20,4 @@ using only 11 annoted images (which were subdivided over a training and test set
 that were 2195x2195 pixels in size.
 
 <img src=visuals/annotation_overview.png>
-<i>Overview of annotation procedure. <b>Left</b> the original image, <b>center</b> the human-generated annotation, and on the <b>right</b> training classes that were generated to train the model (this is optional and training can also be done directly on a human-annotated segmentation).</i>
+<b>Figure. </b><i>Overview of annotation procedure. <b>Left</b> the original image, <b>center</b> the human-generated annotation, and on the <b>right</b> training classes that were generated to train the model (this is optional and training can also be done directly on a human-annotated segmentation).</i>
