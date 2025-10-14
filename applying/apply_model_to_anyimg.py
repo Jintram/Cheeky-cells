@@ -3,6 +3,10 @@
 
 ################################################################################
 
+# MODEL_WEIGHT_PATH = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/ANALYSES/UNET_MODELS/modelUNet20250426_0929_LONGTRAINGOOD.pth'
+
+################################################################################
+
 # =====
 # General libraries
 import matplotlib.pyplot as plt
@@ -17,7 +21,7 @@ from torchvision.transforms import ToTensor, Lambda
 from torch.optim.lr_scheduler import StepLR, LambdaLR
 
 from skimage.measure import label, regionprops
-from skimage.morphology import binary_dilation
+from skimage.morphology import binary_dilation, binary_opening, disk, remove_small_objects
 
 import torch
 import time   
@@ -42,9 +46,12 @@ import importlib
 import mypytorch_fullseg.models_downloaded.unet_model as um #; importlib.reload(um)
 import source.annotation_aided as aa
 
+# import all from self (w/ reloading) 
+# import importlib; import applying.apply_model_to_anyimg; importlib.reload(applying.apply_model_to_anyimg); from applying.apply_model_to_anyimg import *
+
 ################################################################################
 
-def load_sample_data_for_test(showit=False):
+def load_sample_data_for_test(sample_idx=0, showit=False):
     
     METADATA_FILE = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/DATA/metadata_Fluoppi_Olaf-20250425.xlsx'
     
@@ -55,7 +62,7 @@ def load_sample_data_for_test(showit=False):
     metadata_table = pd.read_excel(METADATA_FILE, header=0)
     
     # Now load the first image
-    img_fluop, img_cells = flan42_rw.get_my_image_split(metadata_table, 0)
+    img_fluop, img_cells = flan42_rw.get_my_image_split(metadata_table, sample_idx)
     
     # Show
     if showit:
@@ -77,18 +84,16 @@ def split_image_to_tiles(img_cells, tilesize=500):
     
     return tiles, tiles_shape
     
-def loadmodel():
+def loadmodel(MODEL_WEIGHT_PATH):
     '''
     Load the model. The model was trained and stored in the file 
     mypytorch_fullseg/testing_code_fullseg.py
     '''
     
-    modelUNet = um.UNet(n_channels=1, n_classes=4).to("mps")
-    
-    MODEL_WEIGHT_PATH = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/ANALYSES/UNET_MODELS/modelUNet20250426_0929_LONGTRAINGOOD.pth'
+    modelUNet = um.UNet(n_channels=1, n_classes=4).to("mps")        
     
     # now set the weights
-    modelUNet.load_state_dict(torch.load(MODEL_WEIGHT_PATH))
+    modelUNet.load_state_dict(torch.load(MODEL_WEIGHT_PATH, weights_only=True))
     
     
     return modelUNet
@@ -118,52 +123,58 @@ def make_prediction_for_img500(img_input, myMLmodel):
     return pred_class
 
 
-def applymodel_test():
+def restore_img_from_tiles(tiles_in, tiles_shape, img_shape):
+    '''
+    Given a 1d array of tiles, restore it into a large picture
+    build up by tiles_shape[0] x tiles_shape[1] tiles,
+    and as the last tiles were padded, revert to original
+    img shape of img_shape[0] x img_shape[1].
+    '''
     
-    # Load sample data
-    img_cells = load_sample_data_for_test()
+    rows, cols = tiles_shape
+    tile_h, tile_w = tiles_in[0].shape
+    full_pred_ = np.zeros((rows * tile_h, cols * tile_w), dtype=tiles_in[0].dtype)
+
+    for idx, tile in enumerate(tiles_in):
+        row = idx // cols
+        col = idx % cols
+        full_pred_[row*tile_h:(row+1)*tile_h, col*tile_w:(col+1)*tile_w] = tile
+
+    # Crop to original image size if needed
+    full_pred = full_pred_[:img_shape[0], :img_shape[1]]
+    
+    return full_pred
+
+def make_prediction(img_cells, MODEL_WEIGHT_PATH):
+    '''
+    Load the model and apply it to a large image.
+    Tile the image to be able to feed 500x500 
+    images to the model. Loop over those in
+    batch mode.
+    '''
+    
     # Load the model
-    modelUNet = loadmodel()
-    
+    modelUNet = loadmodel(MODEL_WEIGHT_PATH)
+
     # Rescale the input image
     img_cells_rescaled = aa.image_autorescale(img_cells)
     
     # split the image into tiles
     img_cells_rescaled_tiled, tiles_shape = split_image_to_tiles(img_cells_rescaled)
     # For reference, also split the unscaled image into tiles
-    img_cells_tiled, _ = split_image_to_tiles(img_cells)
+    # img_cells_tiled, _ = split_image_to_tiles(img_cells)
+        # fig, axs = plt.subplots(1, 2, figsize=(10, 5)); axs[0].imshow(img_cells_tiled[24]); axs[1].imshow(img_cells_rescaled_tiled[24]); plt.show(); plt.close()
 
-    # show a tile
-    # Raw
-    fig, axs = plt.subplots(1, 2, figsize=(10, 5))
-    axs[0].imshow(img_cells_tiled[24])
-    axs[1].imshow(img_cells_rescaled_tiled[24])
-    plt.show(); plt.close()
-    
-    if False:
-        # test for one tile
-        
-        # make prediction
-        pred_class = make_prediction_for_img500(img_cells_rescaled_tiled[24], modelUNet)
-
-        # show original image and prediction side by side
-        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-        ax[0].imshow(img_cells_rescaled_tiled[24])    
-        ax[1].imshow(pred_class[0]); 
-        plt.show(); plt.close()
-        
     # Now apply this to all tiles, in batches of 32.
     batch_size = 8
     all_preds = []
 
     # Process each batch, converting to tensor within the loop to save memory
     current_time = time.time()
-    print('Current time: '+str(time.strftime("%H:%M:%S", time.localtime())))
+    print('Starting segmentation at: '+str(time.strftime("%H:%M:%S", time.localtime())))
     total_batches=round(np.ceil(len(img_cells_rescaled_tiled)/batch_size))
     for batch_idx in range(0, len(img_cells_rescaled_tiled), batch_size):
         # batch_idx=0
-        
-        print(f"Currently hanlding batch {round(batch_idx/batch_size+1)} of {total_batches}")        
         
         # Select tiles and convert to appropriate dimensions
         batch_tiles = np.expand_dims(np.array(img_cells_rescaled_tiled[batch_idx:batch_idx+batch_size]), axis=1)
@@ -177,39 +188,22 @@ def applymodel_test():
             preds_class = preds.argmax(1).cpu().numpy()
             all_preds.extend(preds_class)   
         
-        print(f"{(time.time() - current_time)/60:.2f} minutes working")
-        
-    # Optionally, visualize one of the predictions            
-    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-    ax[0].imshow(batch_tiles[0][0])
-    ax[1].imshow(all_preds[0])
-    plt.show()
-    plt.close()
+        # Update user on progress
+        current_batch_nr = batch_idx/batch_size+1
+        if (current_batch_nr) % 5 == 0:                        
+            elapsed = time.time() - current_time
+            print(f"Finished batch {round(current_batch_nr)} of {total_batches} in {int(elapsed // 60)} minutes and {int(elapsed % 60)} seconds")      
+            
+    # Visualize a prediction
+    # fig, ax = plt.subplots(1, 2, figsize=(10, 5)); ax[0].imshow(batch_tiles[0][0]); ax[1].imshow(all_preds[0]); plt.show(); plt.close()
     
-    # now paste together the tiles, using tiles_shape
+    # Paste together the tiles
     # Reconstruct the full prediction image from the tiles
-    rows, cols = tiles_shape
-    tile_h, tile_w = all_preds[0].shape
-    full_pred = np.zeros((rows * tile_h, cols * tile_w), dtype=all_preds[0].dtype)
-
-    for idx, tile in enumerate(all_preds):
-        row = idx // cols
-        col = idx % cols
-        full_pred[row*tile_h:(row+1)*tile_h, col*tile_w:(col+1)*tile_w] = tile
-
-    # Optionally, crop to original image size if needed
-    full_pred_cropped = full_pred[:img_cells.shape[0], :img_cells.shape[1]]
-
-    # Show the reconstructed prediction
-    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-    ax[0].imshow(aa.image_autorescale(img_cells[0:3000, 0:3000]))
-    ax[1].imshow(full_pred_cropped[0:3000, 0:3000])
-    plt.title("Reconstructed Prediction")
-    plt.show()
-    plt.close()
+    full_pred = restore_img_from_tiles(all_preds, tiles_shape, img_cells.shape)
     
-    # label the image for post-processing
-    full_pred_cropped_labeled = label(full_pred_cropped)
+    return full_pred, img_cells_rescaled
+
+def get_randomized_jet(N_colors):
     
     # create a randomized version of the 'jet' map
     # get the jet colors as array
@@ -218,7 +212,7 @@ def applymodel_test():
     # create a randomized version of the 'jet' map
 
     # Get the jet colormap as an array of RGBA colors
-    jet = cm.get_cmap('jet', np.max(full_pred_cropped_labeled)+1)
+    jet = cm.get_cmap('jet', N_colors)
     jet_colors = jet(np.arange(jet.N))
 
     # Shuffle the colors, but keep the first color (background) unchanged
@@ -230,47 +224,101 @@ def applymodel_test():
     # Create a new colormap from the shuffled colors
     random_jet_cmap = ListedColormap(shuffled_colors)
     
-    # display the labeled image in random colors
-    plt.imshow(full_pred_cropped_labeled[0:3000, 0:3000], cmap=random_jet_cmap)
-    plt.show()
-    plt.close()
+    return random_jet_cmap
+
+
+def prediction_postprocessing(full_pred, CELL_AREA_LOWER_BOUND = 20**2*math.pi, close_disk_size=5):
+    '''
+    Remove cytoplasm pixels that are touching the background, and also
+    remove small objects.
+    '''
+    # CELL_AREA_LOWER_BOUND = 20**2*math.pi; close_disk_size=5
+        
+    print('Improving image')        
+        
+    # label the image for post-processing
+    full_pred_labeled = label(full_pred)
+        # plt.imshow(full_pred_labeled[0:3000, 0:3000], cmap=get_randomized_jet(np.max(full_pred_labeled)+1)); plt.show(); plt.close()
     
-    # create a background mask and dilate it
-    background_mask = (full_pred_cropped==0)
+    # Identify pixels that touch the background, by dilating the background and subtracting original background
+    background_mask = (full_pred==0)
     background_mask_dilated = binary_dilation(background_mask)
-    background_bound_mask = background_mask_dilated-background_mask
-    plt.imshow(background_bound_mask[0:3000,0:3000], cmap='grey')#, vmin=0, vmax=255)
-    plt.show(); plt.close()
+    background_bound_mask = np.logical_xor(background_mask_dilated, background_mask)
+        # plt.imshow(background_bound_mask[0:3000,0:3000], cmap='grey'); plt.show(); plt.close()
     
-    # now also generate an overlap between the expanded background and 
-    # the cytoplasm parts
-    cytoplasm_mask = full_pred_cropped==1
+    # Now identify which of those pixels are cytoplasmic
+    cytoplasm_mask = full_pred==1
     cytoplasm_touching_background = np.logical_and(cytoplasm_mask, background_bound_mask)
     
-    # now identify labels of cytosplasm that touches the backround
-    cyto_idx_to_remove = np.unique(full_pred_cropped_labeled[cytoplasm_touching_background])
-    full_pred_cropped_processed = full_pred_cropped.copy()
-    full_pred_cropped_processed[np.isin( full_pred_cropped_labeled, cyto_idx_to_remove )] = 0
+    # Identify indexes of cytoplasm that touches background
+    cyto_idx_to_remove = np.unique(full_pred_labeled[cytoplasm_touching_background])
     
-    fig, ax = plt.subplots(1, 2, figsize=(10, 5))
-    ax[0].imshow(full_pred_cropped[0:3000, 0:3000])
-    ax[0].imshow(cytoplasm_touching_background[0:3000, 0:3000], cmap='Reds', alpha=1.0*cytoplasm_touching_background[0:3000, 0:3000])
-    ax[1].imshow(full_pred_cropped_processed[0:3000, 0:3000])
-    plt.show(); plt.close()
+    # Create a new prediction map of cytoplasm only, and remove the unwanted cytoplasms
+    full_pred_processed = full_pred == 1
+    full_pred_processed[np.isin( full_pred_labeled, cyto_idx_to_remove )] = 0
     
-    # such that we have the final result
-    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
-    ax.imshow(img_cells_rescaled)
-    ax.contour(full_pred_cropped_processed==1, levels=[.5], colors='white')
-    plt.show(); plt.close()
+    if False:
+        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+        ax[0].imshow(full_pred[0:3000, 0:3000])
+        ax[0].imshow(cytoplasm_touching_background[0:3000, 0:3000], cmap='Reds', alpha=1.0*cytoplasm_touching_background[0:3000, 0:3000])
+        ax[1].imshow(full_pred_processed[0:3000, 0:3000])
+        plt.show(); plt.close()
+    
+    # let's also add another round of erosion+dilation
+    print("Performing binary opening")
+    start_time = time.time()
+    full_pred_processed = binary_opening(full_pred_processed==1, disk(close_disk_size))
+    elapsed = time.time() - start_time; print(f"Binary opening took {int(elapsed // 60)} minutes and {int(elapsed % 60)} seconds")   
     
     # remove areas below a certain size
-    CELL_AREA_LOWER_BOUND = 10**2*math.pi
+    full_pred_processed = remove_small_objects(full_pred_processed, CELL_AREA_LOWER_BOUND)
     
-    # from full_pred_cropped_processed, remove areas below CELL_AREA_LOWER_BOUND
-    labeled_cells = label(full_pred_cropped_processed == 1)
-    cell_props = regionprops(labeled_cells)
-    cellidxs_to_keep = [prop.label for prop in cell_props if prop.area > CELL_AREA_LOWER_BOUND]
-    full_pred_cropped_processed = np.isin(labeled_cells, cellidxs_to_keep)
+    return full_pred_processed
+    
+def make_prediction_and_polish(img_cells, MODEL_WEIGHT_PATH, CELL_AREA_LOWER_BOUND = 20**2*math.pi, close_disk_size=5):
+    '''
+    Get prediction using the model
+    '''
+    
+    # Make the raw prediction 
+    full_pred, img_cells_rescaled = make_prediction(img_cells, MODEL_WEIGHT_PATH)
+    # Clean up the prediction
+    full_pred_processed = prediction_postprocessing(full_pred, CELL_AREA_LOWER_BOUND, close_disk_size)
+    
+    return full_pred_processed, full_pred, img_cells_rescaled
+    
+    
+    
+    
+def applymodel_test():
+    '''
+    Shouldn't be run, serves as a test.
+    '''
+    
+    # Load sample data
+    img_cells = load_sample_data_for_test(2)
+    
+    # make the raw prediction 
+    MODEL_WEIGHT_PATH = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/ANALYSES/UNET_MODELS/modelUNet20250426_0929_LONGTRAINGOOD.pth'
+    full_pred, img_cells_rescaled = make_prediction(img_cells, MODEL_WEIGHT_PATH)
+    
+    if False:
+        # Show the reconstructed prediction
+        fig, ax = plt.subplots(1, 2, figsize=(10, 5))
+        ax[0].imshow(img_cells_rescaled[0:3000, 0:3000])
+        ax[1].imshow(full_pred[0:3000, 0:3000])
+        plt.title("Reconstructed Prediction")
+        plt.show()
+        plt.close()
+        
+    # and clean up the prediction
+    full_pred_processed = prediction_postprocessing(full_pred)
+        
+    # such that we have the following result
+    fig, ax = plt.subplots(1, 1, figsize=(10, 10))
+    ax.imshow(img_cells_rescaled)
+    ax.contour(full_pred==1, levels=[.5], colors='white')
+    ax.contour(full_pred_processed==1, levels=[.5], colors='red')
+    plt.show(); plt.close()
     
     

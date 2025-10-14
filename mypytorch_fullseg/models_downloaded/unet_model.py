@@ -2,7 +2,8 @@
 # This model was downloaded from:
 # https://github.com/milesial/Pytorch-UNet
 
-print('This model was downloaded from https://github.com/milesial/Pytorch-UNet')
+print('The model definition was downloaded from https://github.com/milesial/Pytorch-UNet')
+print('Original U-net paper: Ronneberger, Fischer & Brox, MICCAI 2015, https://doi.org/10.48550/arXiv.1505.04597')
 
 """ Full assembly of the parts to form the complete network """
 
