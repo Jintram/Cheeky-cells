@@ -59,3 +59,4 @@ plt.tight_layout()
 # Save to pdf
 outputdir_plots = basedir + '/_plots/'
 fig.savefig(outputdir_plots + basefilename + '_overview-extra2.pdf', bbox_inches='tight', dpi=600)
+fig.savefig(outputdir_plots + basefilename + '_overview-extra2.png', bbox_inches='tight', dpi=600)

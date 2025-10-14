@@ -19,5 +19,5 @@ This requires manual annotation of images, but I've already observed good result
 using only 11 annoted images (which were subdivided over a training and test set), 
 that were 2195x2195 pixels in size.
 
-<img src=visuals/annotation_overview.pdf>
+<img src=visuals/annotation_overview.png>
 *Overview of annotation procedure. **Left** the original image, **center** the human-generated annotation, and on the **right** training classes that were generated to train the model (this is optional and training can also be done directly on a human-annotated segmentation).*
