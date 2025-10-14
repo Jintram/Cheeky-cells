@@ -11,6 +11,10 @@ import plotting_generic as plt_gen
 
 cm_to_inch = 1/2.54
 
+# %% ################################################################################
+# Plot specific annotation images
+
+# Specify where image can be found
 basedir = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/'
 basefilename = 'A4_hmKeima_001_tile'
 
@@ -60,3 +64,35 @@ plt.tight_layout()
 outputdir_plots = basedir + '/_plots/'
 fig.savefig(outputdir_plots + basefilename + '_overview-extra2.pdf', bbox_inches='tight', dpi=600)
 fig.savefig(outputdir_plots + basefilename + '_overview-extra2.png', bbox_inches='tight', dpi=600)
+
+
+# %% ################################################################################
+# Plot another segmentation
+
+basedir = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheeck-Cells_AnnotatedMW_resized_humanannotated/'
+basefilename = 'resizedTo20_2x Cellen 2 (20x vegroting)'
+
+
+file_list = \
+    {'segmentation': '_seg.npy'}
+
+# now only plot figure w/ 1 panel according to above, similar to earlier
+img_data = {}
+for key in file_list.keys():
+    # key = 'segmentation'
+    fullfilename = basedir + basefilename + file_list[key]
+    img_data[key] = np.load(fullfilename, allow_pickle=True)
+    
+# Now make a plot
+# Set all font sizes to 8 pts
+plt.rcParams.update({'font.size': 6})
+# The figure
+fig, ax = plt.subplots(1, 1, figsize=(7*cm_to_inch, 7*cm_to_inch))
+cmap, norm = plt_gen.colors_to_cmap(plt_gen.color_palette_bangwong_whitefirst)
+ax.imshow(img_data['segmentation'], 
+          cmap=cmap, norm=norm, interpolation="nearest") #  vmin=0, vmax=3,
+ax.set_title('Segmentation')
+plt.tight_layout()
+plt.show()
+                                      
+
