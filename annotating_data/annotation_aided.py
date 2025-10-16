@@ -11,7 +11,7 @@ import nd2
 import skimage as sk
 
 from scipy.ndimage import maximum_filter
-from skimage.filters import threshold_triangle, threshold_otsu
+from skimage.filters import threshold_triangle, threshold_otsu, threshold_li
 
 from skimage.morphology import remove_small_objects, label
 from skimage.exposure import rescale_intensity
@@ -19,9 +19,6 @@ from skimage.exposure import rescale_intensity
 import time
 
 import matplotlib.pyplot as plt
-
-# import sys; sys.path.append('/Users/m.wehrens/Documents/git_repos/_UVA/2024_Fluoppi/')
-# import source_2.fluoppi2_readwrite as flrw
 
 import pandas as pd
 
@@ -50,55 +47,41 @@ cm_to_inch = 1/2.54
 # %% #################################################################################
 
 def subtractbaseline(anarray, est_base_pct=.2):
+    
     thresholdlow = np.percentile(anarray, est_base_pct)
     anarray[anarray<=thresholdlow] = thresholdlow
+    
     return anarray
 
 
 def image_autorescale(input_img):
+    # input_img=np.zeros([20,20])
+    # input_img=img_toseg
     
-    new_img = np.log(.1+subtractbaseline(input_img))
+    # plt.hist(input_img.ravel())
+    # plt.hist(image_autorescale(input_img).ravel())
+    
+    # make the image float32 first
+    input_img = input_img.astype(np.float32)
+    
+    # first add a 3rd dimension (corresponding to channels) if there isn't any
+    if len(input_img.shape)==2:
+        input_img = input_img[:,:,np.newaxis]
+    
+    # now go over each channel and perform rescaling
+    new_img = np.zeros_like(input_img)
+    for ch_idx in range(input_img.shape[2]): # ch_idx = 0         
+        new_img[:,:,ch_idx] = np.log(.1+subtractbaseline(input_img[:,:,ch_idx]))
+        
     # rescale to range 0-255
     new_img = rescale_intensity(new_img, 'image', (0, 255))
     new_img = new_img.astype(np.uint8)
+        # plt.imshow(new_img); plt.show()
     
     return new_img
        
 
-def paddimg_totilesize(img, TILE_SIZE=2000):
-    '''
-    extend image to desired square dimensions, if necessary
-    
-    pad with zeroes as these are probably easily recognized by U-net 
-    '''
-    
-    # if the image size is below tile size, pad image to tile size
-    if np.any(np.array(img.shape[:2])<TILE_SIZE):
-        
-        # Padding size for 2d
-        pad_width = [(0, max(0, TILE_SIZE - img.shape[0])),
-                     (0, max(0, TILE_SIZE - img.shape[1]))]
-        
-        # Add padding size for 3rd dimension if necessary
-        if len(img.shape) == 3: pad_width.extend([(0, 0)])
-        
-        # Pad and return the result
-        return np.pad(img, pad_width, mode='constant', constant_values=0)
-
-
-def image_autorescale(input_img):
-    '''
-    Produce custom log rescaling
-    '''
-    
-    new_img = np.log(.1+subtractbaseline(input_img))
-    # rescale to range 0-255
-    new_img = rescale_intensity(new_img, 'image', (0, 255))
-    new_img = new_img.astype(np.uint8)
-    
-    return new_img
-
-def do_rescale_togrey(img):
+def image_greyscale(img):
     '''
     Converts image to grey scale if the image has 3 dimensions.
     This is for auto-thresholding, which doesn't work well with 
@@ -108,19 +91,49 @@ def do_rescale_togrey(img):
     
     if len(img.shape)>2:
         img = img.mean(axis=2)
-        
-    # rescale
-    img = image_autorescale(img)
-    
+            
     return img
+    
+    
+def basicseg1(img):
+    '''
+    very basic segmentation function
+    '''
+    thresholdval = threshold_otsu(img)-1
+    img_segmaskauto = img > thresholdval
+    thresholdval2 = threshold_otsu(img[img_segmaskauto])
+    img_segmaskauto = img > thresholdval2
+    return img_segmaskauto
 
+def basicseg2(img):
+    '''
+    very basic segmentation function (version 2)
+    '''
+    # img = current_tile_rescaled
+    
+    thresholdval = threshold_li(img)
+    
+    img_segmaskauto = img>thresholdval
+    
+    # now remove small parts
+    img_segmaskauto = remove_small_objects(img_segmaskauto, min_size=50**2)
+    
+    # close with circular kernel of radius 10
+    selem = sk.morphology.disk(10)
+    img_segmaskauto = sk.morphology.binary_dilation(img_segmaskauto, selem)
+    
+        # plt.imshow(img_segmaskauto*1.0); plt.show()
+        
+    return img_segmaskauto
     
 
-def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000,
+def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=basicseg1,
                                showedgepic=False, tile_selection_by='maxvar', showplots=True,
                                folder_devplots=None):
     '''    
-    This function is still slightly messy.
+    TO DO: This function is still slightly messy!
+        Perhaps make it more modular?
+    
     Goal is to produce a single tile from a larger image that can be used
     for annotation and training purposes later.
     - If image size < tile size, it pads the image.
@@ -132,35 +145,43 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000,
     some other segmentation algorithm, e.g. classical image operations based,
     was already performed, but didn't work well.)
     
-    This function will also try to produce some basic segmentation mask for the 
-    selected tile.
+    If no segmentation is already given, this function will also try to produce some 
+    basic segmentation mask for the selected tile.
     
     It returns
-    img_toseg_tile, img_seg0_tile, img_toseg_tile_edges, img_toseg_tile_rescaled
+        - img_toseg_tile; the original selected tile
+        - img_seg0_tile; a basic segmentation mask based on otsu thresholding
+        - img_toseg_tile_edges; the locally normalized tile, which enhances edges.
+        - img_toseg_tile_rescaled; a log-rescaled version of the original tile
     '''
     
     # showedgepic=False; img_annot=None; tile_selection_by='maxvar'; showplots=True
     # TILE_SIZE=1000
     
-    # pad image if necessary
-    img_toseg = paddimg_totilesize(img_toseg, TILE_SIZE)
-        # plt.imshow(img_toseg); plt.show(); 
-    # also pad annotation if given
-    if not img_annot is None:
-        img_annot = paddimg_totilesize(img_annot, TILE_SIZE)        
-        # plt.imshow(img_annot); plt.show(); 
+    # PADDING THAT WAS DONE BEFORE IS UNNECESSARAY
+    # img_toseg = paddimg_totilesize(img_toseg, TILE_SIZE)
+    #     # plt.imshow(img_toseg); plt.show(); 
+    # # also pad annotation if given
+    # if not img_annot is None:
+    #     img_annot = paddimg_totilesize(img_annot, TILE_SIZE)        
+    #     # plt.imshow(img_annot); plt.show(); 
     
-    # now split the img_toseg in an array with 2000x2000 tiles
-    row_splits = np.array_split(img_toseg, img_toseg.shape[0] // TILE_SIZE, axis=0)
-    tiles = [np.array_split(row, row.shape[1] // TILE_SIZE, axis=1) for row in row_splits]
+    # Just need to make the right split
+    
+    # now split the img_toseg in an array with approx. 2000x2000 tiles (or TILE_SIZE x TILE_SIZE)
+    tile_nr_rows = np.min(1, img_toseg.shape[0] // TILE_SIZE)
+    row_splits = np.array_split(img_toseg, tile_nr_rows, axis=0)
+        # test1=np.array_split(testarray4500, testarray4500.shape[0] // TILE_SIZE, axis=0)
+    tiles = [np.array_split(row, np.min(1, row.shape[1] // TILE_SIZE), axis=1) for row in row_splits]
     tiles = [tile for row in tiles for tile in row]
         # plt.imshow(tiles[0]); plt.show(); plt.close()
+        # plt.hist(tiles[0].ravel()); plt.show()
     
     # apply max filter with size 250    
     tiles_maxfilt = [maximum_filter(tile, size=20) for tile in tiles] # 250 or 20?
-    # normalize tiles
-    tiles_norm = [tile/tile_mf for tile,tile_mf in zip(tiles, tiles_maxfilt)] 
-        # plt.imshow(tiles_norm[0]); plt.show(); plt.close()
+    # normalize tiles by neighborhood maxima, this will enhance edges
+    tiles_normlocal = [tile/tile_mf for tile,tile_mf in zip(tiles, tiles_maxfilt)] 
+        # plt.imshow(tiles_normlocal[0]); plt.show(); plt.close()
     
     # identify tile that we'll select, either by max variance or signal
     def getnnonzero(anarray):
@@ -168,11 +189,11 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000,
         return anarray    
     if tile_selection_by == 'maxvar':
         print('Selecting slice with max variance')
-        idx_tile_sel = np.argmax([np.var(getnnonzero(tile)) for tile in tiles_norm])
+        idx_tile_sel = np.argmax([np.var(getnnonzero(tile)) for tile in tiles_normlocal])
     elif tile_selection_by == 'maxsignal':
         print('Selecting slice with max signal')
         idx_tile_sel   = np.argmax([np.sum(getnnonzero(tile)) for tile in tiles])
-        # plt.imshow(tiles_norm[idx_tile_sel]); plt.show(); plt.close()
+        # plt.imshow(tiles_normlocal[idx_tile_sel]); plt.show(); plt.close()
     elif tile_selection_by == 'maxarea3bg':
         print('Selecting slice with max area > 3*background (determined by percentile)')
         idx_tile_sel = np.argmax([np.sum(getnnonzero(tile)>np.percentile(getnnonzero(tile), .02)*3) for tile in tiles])
@@ -182,14 +203,14 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000,
         
     # now also select the corresponding segmentation region 
     if not img_annot is None:
-        tiles_annot = [np.array_split(row, row.shape[1] // TILE_SIZE, axis=1) for row in 
-                    np.array_split(img_annot, img_annot.shape[0] // TILE_SIZE, axis=0)]
+        tiles_annot = [np.array_split(row, np.min(1, row.shape[1] // TILE_SIZE), axis=1) for row in 
+                    np.array_split(img_annot, np.min(1, img_annot.shape[0] // TILE_SIZE), axis=0)]
         tiles_annot = [tile for row in tiles_annot for tile in row]
     
         # plot side by side
         if showplots:
             fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
-            _=ax.imshow(tiles_norm[idx_tile_sel])
+            _=ax.imshow(tiles_normlocal[idx_tile_sel])
             _=ax.contour(tiles_annot[idx_tile_sel], levels=[0.5], colors='red', linewidths=0.5)
             plt.tight_layout()
             
@@ -197,45 +218,48 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000,
                 plt.savefig(os.path.join(folder_devplots, 'tile_and_annotation.pdf'), dpi=300)
             else:
                 plt.show(); plt.close()
-            
-    
+                
     # generate a new segmentation of the tile based on otsu method
     #current_tile_log = subtractbaseline(np.log(tiles[idx_tile_sel] + .1))
     # current_tile_rescaled = image_autorescale(tiles[idx_tile_sel])
-    current_tile_rescaledgrey = do_rescale_togrey(tiles[idx_tile_sel])
-    current_tile_rescaled     = image_autorescale(tiles[idx_tile_sel])
-    thresholdval = threshold_otsu(current_tile_rescaledgrey)-1
-    img_segmaskauto = current_tile_rescaledgrey > thresholdval
-    thresholdval2 = threshold_otsu(current_tile_rescaledgrey[img_segmaskauto])
-    img_segmaskauto = current_tile_rescaledgrey > thresholdval2
-    
-    if showplots:
-        fig, ax = plt.subplots(1, 2, figsize=(10*cm_to_inch, 5*cm_to_inch))
-        ax[0].imshow(current_tile_rescaled)
-        # ax[0].contour(img_segmaskauto, levels=[0.5], colors='red')
-        ax[1].imshow(tiles[idx_tile_sel])
-        ax[1].contour(img_segmaskauto, levels=[0.5], colors='white')
-        plt.tight_layout()
-        if not folder_devplots is None:
-            plt.savefig(os.path.join(folder_devplots, 'tile_and_autoannotation.pdf'), dpi=300)
-        else:
-            plt.show(); plt.close()
+    current_tile_rescaled     = image_autorescale(tiles[idx_tile_sel])    
+        # plt.imshow(current_tile_rescaled); plt.show()
         
-    
+    # If no segmentation exists, just try something basic
+    if img_annot is None:
+        current_tile_rescaledgrey = image_greyscale(current_tile_rescaled)
+            # plt.imshow(current_tile_rescaledgrey); plt.show()
+        img_segmaskauto = segfn(current_tile_rescaledgrey)
+        
+        # remove small objects 
+        img_seg0_tile = remove_small_objects(img_segmaskauto, min_size=20**2)
+        
+        if showplots:
+            fig, ax = plt.subplots(1, 2, figsize=(10*cm_to_inch, 5*cm_to_inch))
+            ax[0].imshow(current_tile_rescaled)
+            # ax[0].contour(img_segmaskauto, levels=[0.5], colors='red')
+            #ax[1].imshow(tiles[idx_tile_sel])
+            #ax[1].contour(img_segmaskauto, levels=[0.5], colors='white')
+            ax[1].imshow(img_segmaskauto)
+            plt.tight_layout()
+            if not folder_devplots is None:
+                plt.savefig(os.path.join(folder_devplots, 'tile_and_autoannotation.pdf'), dpi=300)
+            else:
+                plt.show(); plt.close()
+    else:
+        img_seg0_tile = tiles_annot[idx_tile_sel]
+            
     if showedgepic:
         # edge image from the local normalization
         fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
-        ax.imshow(tiles_norm[idx_tile_sel])
+        ax.imshow(tiles_normlocal[idx_tile_sel])
         ax.contour(img_segmaskauto, levels=[0.5], colors='red')    
         plt.show(); plt.close()
-    
-    # remove small objects 
-    img_seg0_tile = remove_small_objects(img_segmaskauto, min_size=20**2)
     
     # pic of cells
     img_toseg_tile = tiles[idx_tile_sel]
     img_toseg_tile_rescaled = current_tile_rescaled
-    img_toseg_tile_edges = tiles_norm[idx_tile_sel]
+    img_toseg_tile_edges = tiles_normlocal[idx_tile_sel]
     
     return img_toseg_tile, img_seg0_tile, img_toseg_tile_edges, img_toseg_tile_rescaled
 
@@ -247,6 +271,9 @@ def get_segfile_ifany(df_metadata, file_idx, intitial_segfolder):
     Looks for existing seg file in the form of _seg.npy or _seg.tif based
     on df_metadata, file_idx.
     '''
+    
+    # Set None value that will be returned in case no img found
+    img_annot = None
     
     # Get image info
     _, _, filename, _, _ = crw.get_fileinfo_metadata(df_metadata, file_idx)
@@ -265,14 +292,17 @@ def get_segfile_ifany(df_metadata, file_idx, intitial_segfolder):
         img_annot = sk.io.imread(filepath_tif)
         
     # Flatten to 2d
-    if len(img_annot.shape) == 3:            
-        img_annot = img_annot.max(axis=2)
+    if not img_annot is None:
+        if len(img_annot.shape) == 3:            
+            img_annot = img_annot.max(axis=2)
         
     # Return it
     return img_annot
 
 def annotate_pictures_aided(df_metadata, file_idx, 
-                            output_segfolder, intitial_segfolder = None, TILE_SIZE=2000,
+                            output_segfolder, 
+                            segfn = basicseg1,
+                            intitial_segfolder = None, TILE_SIZE=2000,
                             tile_selection_by = 'maxvar', 
                             ignore_saved_file=False, showplots=False):
     '''
@@ -289,6 +319,13 @@ def annotate_pictures_aided(df_metadata, file_idx,
     if file_idx is None:
         raise ValueError('file_idx should be specified.')
     
+    # Make segdir 
+    os.makedirs(output_segfolder, exist_ok=True)
+    
+    # Get image name
+    _, _, filename, _, _ = crw.get_fileinfo_metadata(df_metadata, file_idx)
+    filename_base = os.path.splitext(filename)[0]
+    print(f'Load file: {filename}')
         
     # Load the image
     img_toseg = \
@@ -301,14 +338,110 @@ def annotate_pictures_aided(df_metadata, file_idx,
         
     # Now get a single tile for the annotation
     img_toseg_tile, img_seg0_tile, img_toseg_tile_edges, img_toseg_tile_rescaled = \
-        annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=TILE_SIZE,
+        annothelp_tile_and_segment(img_toseg, img_annot=img_annot, TILE_SIZE=TILE_SIZE, segfn=segfn,
                                 showedgepic=False, tile_selection_by=tile_selection_by, showplots=showplots,
                                 folder_devplots=None)
         # plt.imshow(img_toseg_tile); plt.show()
-        # plt.imshow(img_toseg_
+        # plt.imshow(img_seg0_tile); plt.show()
+        # plt.imshow(img_toseg_tile_rescaled); plt.show()
+        # plt.imshow(img_toseg_tile_edges); plt.show()
         
+    # Prepare output filenames
+    newfilename_annot        = filename + '_tile_annothuman.npy'
+    newfilename_img          = filename + '_tile_img.npy' 
+    newfilename_img_enhanced = filename + '_tile_img_enhanced.npy'
+    newfilename_extra        = filename + '_tile_transform.npy'
+        
+    # if seg file already exists, load it (assumes also other files match)
+    if os.path.exists(output_segfolder + newfilename_annot) and (not ignore_saved_file):
+        print('Loaded image seg file:', newfilename_annot)
+        img_seg0_tile = np.load(output_segfolder + newfilename_annot, allow_pickle=True)
+            # plt.imshow(img_seg0_tile); plt.show(); plt.close()
+
+    # now improve this image in napari
+    viewer = napari.Viewer()
+    # img_cells_tile_rescaled = image_autorescale(img_cells_tile)
+    viewer.add_image(img_toseg_tile_rescaled)
+
+    # add a label layer                           
+    seg_layer = viewer.add_labels(name='segmentation', data=img_seg0_tile)
+    # viewer.close()
+    napari.run()
+        
+    # now save the annotation data
+    print('Saving annotation data')
+    seg_layer_data = seg_layer.data
+    np.save(output_segfolder + newfilename_annot, seg_layer_data)
+    np.save(output_segfolder + newfilename_img, img_toseg_tile)
+    np.save(output_segfolder + newfilename_extra, img_toseg_tile_edges)
+    np.save(output_segfolder + newfilename_img_enhanced, img_toseg_tile_rescaled)
     
-    
+    # plot the result
+    if showplots:
+        fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
+        ax.imshow(img_toseg_tile)
+        ax.contour(seg_layer_data, levels=[0.5], colors='red')    
+        plt.show(); plt.close()
 
 
+
+# Now a function that loops over the images that are available in the metadata and calls
+# annotate_pictures_aided()
+def annotate_all_pictures_aided(df_metadata, 
+                                output_segfolder, intitial_segfolder = None, TILE_SIZE=2000,
+                                tile_selection_by = 'maxvar', segfn=basicseg1,
+                                ignore_saved_file=False, showplots=False):
+    '''
+    
+    '''
+    # df_metadata should exist
+    # file_idx = 0
+    #
+    # intitial_segfolder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheek-Cells_resized_anonymous_seg25/'
+    # output_segfolder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/ANALYSIS/20251015/humanseg/'
+    #
+    # tile_selection_by = 'maxvar'; ignore_saved_file=False; showplots=False
+    
+    if df_metadata is None:
+        raise ValueError('df_metadata should be specified.')
+    
+    # Make segdir 
+    os.makedirs(output_segfolder, exist_ok=True)
+    
+    # Loop over all files in the metadata
+    for file_idx in range(df_metadata.shape[0]):
+        print('=======')
+        print(f'Processing file {file_idx+1} of {df_metadata.shape[0]}')
+        annotate_pictures_aided(df_metadata, file_idx, 
+                            output_segfolder, 
+                            segfn=segfn,
+                            intitial_segfolder = intitial_segfolder, TILE_SIZE=TILE_SIZE,
+                            tile_selection_by = tile_selection_by, 
+                            ignore_saved_file=ignore_saved_file, showplots=showplots)
+
+
+# %% ################################################################################
+# Discarded code
+
+
+# PADDING IS UNNECESSARAY
+# def paddimg_totilesize(img, TILE_SIZE=2000):
+#     '''
+#     Extend image to desired square dimensions, if necessary
+    
+#     Pad with zeroes as these are probably easily recognized by U-net 
+#     '''
+    
+#     # if the image size is below tile size, pad image to tile size
+#     if np.any(np.array(img.shape[:2])<TILE_SIZE):
+        
+#         # Padding size for 2d
+#         pad_width = [(0, max(0, TILE_SIZE - img.shape[0])),
+#                      (0, max(0, TILE_SIZE - img.shape[1]))]
+        
+#         # Add padding size for 3rd dimension if necessary
+#         if len(img.shape) == 3: pad_width.extend([(0, 0)])
+        
+#         # Pad and return the result
+#         return np.pad(img, pad_width, mode='constant', constant_values=0)
 

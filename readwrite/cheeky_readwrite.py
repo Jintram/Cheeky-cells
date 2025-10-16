@@ -100,12 +100,14 @@ def invertimage(img):
     Invert image that is 2d or 3d (per layer)
     '''
     
-    if len(img.shape) == 2:
-        img_inverted = img.max() - img
-    elif len(img.shape) == 3:
-        img_inverted = img.max(axis=(1,2))[:,None,None] - img
-    else:
-        raise ValueError('Image should be 2d or 3d.')
+    img_inverted = img.max() - img
+    
+    # if len(img.shape) == 2:
+    #     img_inverted = img.max() - img
+    # elif len(img.shape) == 3:
+    #     img_inverted = img.max(axis=(1,2))[:,None,None] - img
+    # else:
+    #     raise ValueError('Image should be 2d or 3d.')
     
     return img_inverted
     
@@ -141,6 +143,7 @@ def loadsegfile_metadata(df_metadata, file_idx): # , metadatapath=None
         img = nd2.ND2File(fullpath).asarray()
     else:
         img = skio.imread(fullpath)
+        # plt.imshow(img); plt.show()
         
     # Invert image if desired
     if do_invert:
