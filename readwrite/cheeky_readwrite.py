@@ -112,7 +112,7 @@ def invertimage(img):
     return img_inverted
     
     
-def loadsegfile_metadata(df_metadata, file_idx): # , metadatapath=None
+def loadimgfile_metadata(df_metadata, file_idx): # , metadatapath=None
     '''
     Loads one image with the to be segmented data, based
     on the metadata file. Specify which image by specifying an 
@@ -156,6 +156,43 @@ def loadsegfile_metadata(df_metadata, file_idx): # , metadatapath=None
         return img[segchannel]
     
 
+
+def loadsegfile_metadata(df_metadata, file_idx, segfolder):
+    '''
+    Looks for a segmentation mask file in the form of _seg.npy or _seg.tif based
+    on df_metadata, file_idx. 
+    Requirement is that it has the same resolution as the original files, and is
+    a binary mask.
     
+    These can both be externally provided segmentation masks or segmentation masks
+    that were generated within this script collection.
+    '''
+    
+    # Set None value that will be returned in case no img found
+    img_annot = None
+    
+    # Get image info
+    _, _, filename, _, _ = crw.get_fileinfo_metadata(df_metadata, file_idx)
+    
+    # Get current file extension
+    filename_extension = os.path.splitext(filename)[1]
+    
+    # Check for existing seg file
+    filepath_npy = os.path.join(segfolder, filename.replace(filename_extension, '_seg.npy'))
+    filepath_tif = os.path.join(segfolder, filename.replace(filename_extension, '_seg.tif'))
+    
+    # Load the file
+    if os.path.exists(filepath_npy):
+        img_annot = np.load(filepath_npy)
+    elif os.path.exists(filepath_tif):
+        img_annot = sk.io.imread(filepath_tif)
+        
+    # Flatten to 2d
+    if not img_annot is None:
+        if len(img_annot.shape) == 3:            
+            img_annot = img_annot.max(axis=2)
+        
+    # Return it
+    return img_annot    
 
     

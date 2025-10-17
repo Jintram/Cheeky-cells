@@ -269,43 +269,6 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=
 
 # %% #################################################################################
 
-def get_segfile_ifany(df_metadata, file_idx, segfolder):
-    '''
-    Looks for a segmentation mask file in the form of _seg.npy or _seg.tif based
-    on df_metadata, file_idx. 
-    Requirement is that it has the same resolution as the original files, and is
-    a binary mask.
-    
-    These can both be externally provided segmentation masks or segmentation masks
-    that were generated within this script collection.
-    '''
-    
-    # Set None value that will be returned in case no img found
-    img_annot = None
-    
-    # Get image info
-    _, _, filename, _, _ = crw.get_fileinfo_metadata(df_metadata, file_idx)
-    
-    # Get current file extension
-    filename_extension = os.path.splitext(filename)[1]
-    
-    # Check for existing seg file
-    filepath_npy = os.path.join(segfolder, filename.replace(filename_extension, '_seg.npy'))
-    filepath_tif = os.path.join(segfolder, filename.replace(filename_extension, '_seg.tif'))
-    
-    # Load the file
-    if os.path.exists(filepath_npy):
-        img_annot = np.load(filepath_npy)
-    elif os.path.exists(filepath_tif):
-        img_annot = sk.io.imread(filepath_tif)
-        
-    # Flatten to 2d
-    if not img_annot is None:
-        if len(img_annot.shape) == 3:            
-            img_annot = img_annot.max(axis=2)
-        
-    # Return it
-    return img_annot
 
 def annotate_pictures_aided(df_metadata, file_idx, 
                             output_segfolder, 
@@ -337,12 +300,12 @@ def annotate_pictures_aided(df_metadata, file_idx,
         
     # Load the image
     img_toseg = \
-        crw.loadsegfile_metadata(df_metadata, file_idx)
+        crw.loadimgfile_metadata(df_metadata, file_idx)
         # plt.imshow(img_toseg); plt.show()
 
     # Load seg file if present
     if not intitial_segfolder is None:
-        img_annot = get_segfile_ifany(df_metadata, file_idx, intitial_segfolder)
+        img_annot = crw.loadsegfile_metadata(df_metadata, file_idx, intitial_segfolder)
     else:
         img_annot = None
         # plt.imshow(img_annot); plt.show()
