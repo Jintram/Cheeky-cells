@@ -54,7 +54,7 @@ def subtractbaseline(anarray, est_base_pct=.2):
     return anarray
 
 
-def image_autorescale(input_img):
+def image_autorescale(input_img, rescalelog=True):
     # input_img=np.zeros([20,20])
     # input_img=img_toseg
     
@@ -70,8 +70,11 @@ def image_autorescale(input_img):
     
     # now go over each channel and perform rescaling
     new_img = np.zeros_like(input_img)
-    for ch_idx in range(input_img.shape[2]): # ch_idx = 0         
-        new_img[:,:,ch_idx] = np.log(.1+subtractbaseline(input_img[:,:,ch_idx]))
+    for ch_idx in range(input_img.shape[2]): # ch_idx = 0 
+        if rescalelog:  
+            new_img[:,:,ch_idx] = np.log(.1+subtractbaseline(input_img[:,:,ch_idx]))
+        else:
+            new_img[:,:,ch_idx] = subtractbaseline(input_img[:,:,ch_idx])
         
     # rescale to range 0-255
     new_img = rescale_intensity(new_img, 'image', (0, 255))
@@ -120,7 +123,7 @@ def basicseg2(img):
     
     # close with circular kernel of radius 10
     selem = sk.morphology.disk(10)
-    img_segmaskauto = sk.morphology.binary_dilation(img_segmaskauto, selem)
+    img_segmaskauto = sk.morphology.binary_closing(img_segmaskauto, selem)
     
         # plt.imshow(img_segmaskauto*1.0); plt.show()
         
@@ -129,7 +132,7 @@ def basicseg2(img):
 
 def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=basicseg1,
                                showedgepic=False, tile_selection_by='maxvar', showplots=True,
-                               folder_devplots=None):
+                               folder_devplots=None, rescalelog=True):
     '''    
     TO DO: This function is still slightly messy!
         Perhaps make it more modular?
@@ -169,10 +172,10 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=
     # Just need to make the right split
     
     # now split the img_toseg in an array with approx. 2000x2000 tiles (or TILE_SIZE x TILE_SIZE)
-    tile_nr_rows = np.min(1, img_toseg.shape[0] // TILE_SIZE)
+    tile_nr_rows = np.max([1, img_toseg.shape[0] // TILE_SIZE])
     row_splits = np.array_split(img_toseg, tile_nr_rows, axis=0)
         # test1=np.array_split(testarray4500, testarray4500.shape[0] // TILE_SIZE, axis=0)
-    tiles = [np.array_split(row, np.min(1, row.shape[1] // TILE_SIZE), axis=1) for row in row_splits]
+    tiles = [np.array_split(row, np.max([1, row.shape[1] // TILE_SIZE]), axis=1) for row in row_splits]
     tiles = [tile for row in tiles for tile in row]
         # plt.imshow(tiles[0]); plt.show(); plt.close()
         # plt.hist(tiles[0].ravel()); plt.show()
@@ -203,8 +206,8 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=
         
     # now also select the corresponding segmentation region 
     if not img_annot is None:
-        tiles_annot = [np.array_split(row, np.min(1, row.shape[1] // TILE_SIZE), axis=1) for row in 
-                    np.array_split(img_annot, np.min(1, img_annot.shape[0] // TILE_SIZE), axis=0)]
+        tiles_annot = [np.array_split(row, np.max([1, row.shape[1] // TILE_SIZE]), axis=1) for row in 
+                    np.array_split(img_annot, np.max([1, img_annot.shape[0] // TILE_SIZE]), axis=0)]
         tiles_annot = [tile for row in tiles_annot for tile in row]
     
         # plot side by side
@@ -222,7 +225,7 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=
     # generate a new segmentation of the tile based on otsu method
     #current_tile_log = subtractbaseline(np.log(tiles[idx_tile_sel] + .1))
     # current_tile_rescaled = image_autorescale(tiles[idx_tile_sel])
-    current_tile_rescaled     = image_autorescale(tiles[idx_tile_sel])    
+    current_tile_rescaled     = image_autorescale(tiles[idx_tile_sel], rescalelog=rescalelog)    
         # plt.imshow(current_tile_rescaled); plt.show()
         
     # If no segmentation exists, just try something basic
@@ -266,10 +269,15 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=
 
 # %% #################################################################################
 
-def get_segfile_ifany(df_metadata, file_idx, intitial_segfolder):
+def get_segfile_ifany(df_metadata, file_idx, segfolder):
     '''
-    Looks for existing seg file in the form of _seg.npy or _seg.tif based
-    on df_metadata, file_idx.
+    Looks for a segmentation mask file in the form of _seg.npy or _seg.tif based
+    on df_metadata, file_idx. 
+    Requirement is that it has the same resolution as the original files, and is
+    a binary mask.
+    
+    These can both be externally provided segmentation masks or segmentation masks
+    that were generated within this script collection.
     '''
     
     # Set None value that will be returned in case no img found
@@ -282,8 +290,8 @@ def get_segfile_ifany(df_metadata, file_idx, intitial_segfolder):
     filename_extension = os.path.splitext(filename)[1]
     
     # Check for existing seg file
-    filepath_npy = os.path.join(intitial_segfolder, filename.replace(filename_extension, '_seg.npy'))
-    filepath_tif = os.path.join(intitial_segfolder, filename.replace(filename_extension, '_seg.tif'))
+    filepath_npy = os.path.join(segfolder, filename.replace(filename_extension, '_seg.npy'))
+    filepath_tif = os.path.join(segfolder, filename.replace(filename_extension, '_seg.tif'))
     
     # Load the file
     if os.path.exists(filepath_npy):
@@ -304,7 +312,7 @@ def annotate_pictures_aided(df_metadata, file_idx,
                             segfn = basicseg1,
                             intitial_segfolder = None, TILE_SIZE=2000,
                             tile_selection_by = 'maxvar', 
-                            ignore_saved_file=False, showplots=False):
+                            ignore_saved_file=False, showplots=False, rescalelog=True):
     '''
     
     '''
@@ -333,14 +341,17 @@ def annotate_pictures_aided(df_metadata, file_idx,
         # plt.imshow(img_toseg); plt.show()
 
     # Load seg file if present
-    img_annot = get_segfile_ifany(df_metadata, file_idx, intitial_segfolder)
+    if not intitial_segfolder is None:
+        img_annot = get_segfile_ifany(df_metadata, file_idx, intitial_segfolder)
+    else:
+        img_annot = None
         # plt.imshow(img_annot); plt.show()
         
     # Now get a single tile for the annotation
     img_toseg_tile, img_seg0_tile, img_toseg_tile_edges, img_toseg_tile_rescaled = \
         annothelp_tile_and_segment(img_toseg, img_annot=img_annot, TILE_SIZE=TILE_SIZE, segfn=segfn,
                                 showedgepic=False, tile_selection_by=tile_selection_by, showplots=showplots,
-                                folder_devplots=None)
+                                folder_devplots=None, rescalelog=rescalelog)
         # plt.imshow(img_toseg_tile); plt.show()
         # plt.imshow(img_seg0_tile); plt.show()
         # plt.imshow(img_toseg_tile_rescaled); plt.show()
@@ -350,7 +361,7 @@ def annotate_pictures_aided(df_metadata, file_idx,
     newfilename_annot        = filename + '_tile_annothuman.npy'
     newfilename_img          = filename + '_tile_img.npy' 
     newfilename_img_enhanced = filename + '_tile_img_enhanced.npy'
-    newfilename_extra        = filename + '_tile_transform.npy'
+    newfilename_extra        = filename + '_tile_transform.npy' # edge transform
         
     # if seg file already exists, load it (assumes also other files match)
     if os.path.exists(output_segfolder + newfilename_annot) and (not ignore_saved_file):
@@ -387,10 +398,11 @@ def annotate_pictures_aided(df_metadata, file_idx,
 
 # Now a function that loops over the images that are available in the metadata and calls
 # annotate_pictures_aided()
-def annotate_all_pictures_aided(df_metadata, 
-                                output_segfolder, intitial_segfolder = None, TILE_SIZE=2000,
+def annotate_all_pictures_aided(df_metadata, output_segfolder, 
+                                intitial_segfolder = None, TILE_SIZE=2000,
                                 tile_selection_by = 'maxvar', segfn=basicseg1,
-                                ignore_saved_file=False, showplots=False):
+                                ignore_saved_file=False, showplots=False,
+                                rescalelog = True):
     '''
     
     '''
@@ -400,7 +412,7 @@ def annotate_all_pictures_aided(df_metadata,
     # intitial_segfolder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheek-Cells_resized_anonymous_seg25/'
     # output_segfolder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/ANALYSIS/20251015/humanseg/'
     #
-    # tile_selection_by = 'maxvar'; ignore_saved_file=False; showplots=False
+    # tile_selection_by = 'maxvar'; ignore_saved_file=False; showplots=False; TILE_SIZE=1000
     
     if df_metadata is None:
         raise ValueError('df_metadata should be specified.')
@@ -409,7 +421,8 @@ def annotate_all_pictures_aided(df_metadata,
     os.makedirs(output_segfolder, exist_ok=True)
     
     # Loop over all files in the metadata
-    for file_idx in range(df_metadata.shape[0]):
+    for file_idx in range(df_metadata.shape[0]): # file_idx = 0
+    # for file_idx in range(11, df_metadata.shape[0]): 
         print('=======')
         print(f'Processing file {file_idx+1} of {df_metadata.shape[0]}')
         annotate_pictures_aided(df_metadata, file_idx, 
@@ -417,7 +430,17 @@ def annotate_all_pictures_aided(df_metadata,
                             segfn=segfn,
                             intitial_segfolder = intitial_segfolder, TILE_SIZE=TILE_SIZE,
                             tile_selection_by = tile_selection_by, 
-                            ignore_saved_file=ignore_saved_file, showplots=showplots)
+                            ignore_saved_file=ignore_saved_file, showplots=showplots,
+                            rescalelog=rescalelog)
+        
+                            
+                            
+                            
+        # read key, "n" for next, or "q" for quit
+        # user_input = input('Press "n" for next image, or "q" to quit: ').strip().lower()
+        # if user_input == 'q':
+        #     print('Quitting annotation loop.')
+        #     break
 
 
 # %% ################################################################################
