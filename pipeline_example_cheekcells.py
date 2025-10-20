@@ -27,6 +27,11 @@ import readwrite.cheeky_readwrite as crw
 
 import annotating_data.annotation_aided as caa
     # import importlib; importlib.reload(caa)
+    
+import annotating_data.annotation_postprocessing as cap
+    # import importlib; importlib.reload(cap)
+    
+
 
 # %% ################################################################################
 
@@ -57,6 +62,18 @@ caa.annotate_all_pictures_aided(df_metadata,
 
 
 # %% ################################################################################
+
+# Now let's post-process the segmented files to get an improved training mask
+segfolder = outputdirectory + 'humanseg/'
+
+# Improve all basic segmentations, ie add boundaries proximity zones
+cap.postprocess_basicsegfile_all(df_metadata, segfolder, suffix='_seg_postpr', showplot=True)
+
+# %% ################################################################################
+# Now set up a dataset, model, and start training
+
+
+
 
 
 

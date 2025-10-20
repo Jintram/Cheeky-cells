@@ -157,7 +157,7 @@ def loadimgfile_metadata(df_metadata, file_idx): # , metadatapath=None
     
 
 
-def loadsegfile_metadata(df_metadata, file_idx, segfolder):
+def loadsegfile_metadata(df_metadata, file_idx, segfolder, suffix='_seg', silence=True):
     '''
     Looks for a segmentation mask file in the form of _seg.npy or _seg.tif based
     on df_metadata, file_idx. 
@@ -172,27 +172,49 @@ def loadsegfile_metadata(df_metadata, file_idx, segfolder):
     img_annot = None
     
     # Get image info
-    _, _, filename, _, _ = crw.get_fileinfo_metadata(df_metadata, file_idx)
+    _, _, filename, _, _ = get_fileinfo_metadata(df_metadata, file_idx)
     
     # Get current file extension
     filename_extension = os.path.splitext(filename)[1]
     
     # Check for existing seg file
-    filepath_npy = os.path.join(segfolder, filename.replace(filename_extension, '_seg.npy'))
-    filepath_tif = os.path.join(segfolder, filename.replace(filename_extension, '_seg.tif'))
+    if not silence:
+        print('Looking for', filename.replace(filename_extension, suffix+'.npy'), ',', 
+                             filename.replace(filename_extension, suffix+'.tif'))
+    filepath_npy = os.path.join(segfolder, filename.replace(filename_extension, suffix+'.npy'))
+    filepath_tif = os.path.join(segfolder, filename.replace(filename_extension, suffix+'.tif'))
     
     # Load the file
     if os.path.exists(filepath_npy):
         img_annot = np.load(filepath_npy)
     elif os.path.exists(filepath_tif):
-        img_annot = sk.io.imread(filepath_tif)
+        img_annot = skio.imread(filepath_tif)
         
     # Flatten to 2d
     if not img_annot is None:
         if len(img_annot.shape) == 3:            
             img_annot = img_annot.max(axis=2)
-        
+    
+    if (img_annot is None) and (not silence):
+        print('No seg file found..')
+    
     # Return it
     return img_annot    
 
+
+def savesegfile_default(x, df_metadata, file_idx, segfolder, suffix):
+    '''
+    Saving data "x" to a npy file using standard filename formatting
+    for segfiles.
+    '''
+    
+    # determine filename from metadata
+    _, _, filename, _, _ = get_fileinfo_metadata(df_metadata, file_idx)
+    
+    # determine new filename
+    filename_base = os.path.splitext(filename)[0]
+    newfilename_annot        = filename_base + suffix + '.npy'
+    
+    # now write the file
+    np.save(segfolder + newfilename_annot, x)
     

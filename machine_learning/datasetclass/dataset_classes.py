@@ -31,6 +31,7 @@ from PIL import Image
 
 def get_file_list_annotimgs_dloader(metadata_file, train_or_test):
     '''
+    Metadata file should at least contain the columns 'filename' and 'train_or_test'.
     '''
     
     # Load metadata, get filenames
@@ -66,7 +67,7 @@ def get_label_frequencies_train(metadata_file, annot_dir):
         get_file_list_annotimgs_dloader(metadata_file, 'train')
     
     counts_all=np.array([0]*4)
-    for sample_idx in range(len(thefilelist_enhanced)):
+    for sample_idx in range(len(thefilelist_annot_features)):
         # sample_idx=0
         # load image
         current_annot = np.load(annot_dir + thefilelist_annot_features[sample_idx], allow_pickle=True)

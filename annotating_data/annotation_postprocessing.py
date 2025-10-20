@@ -12,6 +12,7 @@ from skimage.measure import label
 cm_to_inch = 1/2.54
 
 import readwrite.cheeky_readwrite as crw
+    # import importlib; importlib.reload(crw)
 import annotating_data.annotation_aided as caa
 
 # %% ################################################################################
@@ -85,16 +86,49 @@ def update_seg_extrannot(initial_annotation_human):
     
 # %% ################################################################################    
 
-def testcode():
+    
+
+def postprocess_basicsegfile(df_metadata, file_idx, segfolder, suffix, showplot=False, updateFN=update_seg_extrannot):
     
     # Load a test segmentation mask
     file_index = 0
     current_mask = \
-        caa.load_example_annotation_mask(
+        crw.loadsegfile_metadata(df_metadata, file_idx, segfolder, silence=False, suffix='_tile_seg')
     
+    # Update the mask
+    current_mask_updated = updateFN(current_mask)
+    
+    # Now save the mask
+    crw.savesegfile_default(current_mask_updated, df_metadata, file_idx, segfolder, suffix=suffix)
+    
+    
+    # now show
+    if showplot:
+        plt.imshow(current_mask); plt.show()
+        plt.imshow(current_mask_updated); plt.show()
 
 
+def postprocess_basicsegfile_all(df_metadata, segfolder, suffix='_tile_seg_postpr', showplot=False, updateFN=update_seg_extrannot):
+    '''
+    Post-process all files in metadata such that the training
+    classes will be improved.
+    Basic seg files will be converted according to 'updateFN'.
     
+    Example: convert simple binary regions to labeled mask
+    with inside region, borders, proximity zones and background.
+    '''
+    
+    # loop over all files
+    for file_idx in range(len(df_metadata)):
+        print('Processing file index', file_idx, 'of', len(df_metadata))
+        postprocess_basicsegfile(df_metadata, file_idx, segfolder, suffix=suffix, showplot=showplot, updateFN=updateFN)
+
+
+
+
+
+# %% ################################################################################    
+# PROBABLY OBSOLETE    
     
 def post_processing():
     

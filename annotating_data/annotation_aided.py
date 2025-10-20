@@ -321,10 +321,11 @@ def annotate_pictures_aided(df_metadata, file_idx,
         # plt.imshow(img_toseg_tile_edges); plt.show()
         
     # Prepare output filenames
-    newfilename_annot        = filename + '_tile_annothuman.npy'
-    newfilename_img          = filename + '_tile_img.npy' 
-    newfilename_img_enhanced = filename + '_tile_img_enhanced.npy'
-    newfilename_extra        = filename + '_tile_transform.npy' # edge transform
+    filename_base = os.path.splitext(filename)[0]
+    newfilename_annot        = filename_base + '_tile_seg.npy'
+    newfilename_img          = filename_base + '_tile_img.npy' 
+    newfilename_img_enhanced = filename_base + '_tile_img_enhanced.npy'
+    newfilename_extra        = filename_base + '_tile_transform.npy' # edge transform
         
     # if seg file already exists, load it (assumes also other files match)
     if os.path.exists(output_segfolder + newfilename_annot) and (not ignore_saved_file):
