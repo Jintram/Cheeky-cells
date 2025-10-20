@@ -73,7 +73,9 @@ cap.postprocess_basicsegfile_all(df_metadata, segfolder, suffix='_seg_postpr', s
 # Now set up a dataset, model, and start training
 
 
-
+XXXX
+( update `machine_learning/datasetclass/dataset_classes.py` first)
+XXXX
 
 
 
