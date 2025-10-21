@@ -22,6 +22,11 @@ if SCRIPT_DIR not in sys.path: sys.path.append(SCRIPT_DIR)
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch
+import numpy as np
+
+from torch.utils.data import DataLoader
+from torchvision.transforms import ToTensor, Lambda
+from torch.optim.lr_scheduler import StepLR, LambdaLR
 
 
 # custom libs
@@ -35,7 +40,7 @@ import annotating_data.annotation_aided as caa
 import annotating_data.annotation_postprocessing as cap
     # import importlib; importlib.reload(cap)
     
-
+cm_to_inch = 1/2.54
 
 # %% ################################################################################
 
@@ -75,6 +80,11 @@ cap.postprocess_basicsegfile_all(df_metadata, segfolder, suffix='_seg_postpr', s
 
 # %% ################################################################################
 # Now set up a dataset, model, and start training
+
+### XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+### CODE BELOW IS STILL MESSY XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+### XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+
 
 # !!! TO DO!!! # !!! TO DO!!! # !!! TO DO!!! # !!! TO DO!!! # !!! TO DO!!! 
 # 
@@ -146,37 +156,37 @@ plt.imshow(logits[0,1,:,:].detach().cpu(), cmap='gray')
 
 # Now let's train the network
 
-
-XXXXXXXXXXXXXXXX
-
+# libraries
+# import importlib; importlib.reload(cdc)
 
 ### settings
 
 learning_rate = 1e-3 # 1e-3
+BATCH_SIZE = 1
 
 # Custom weights for categories to be used in loss function
-label_counts  = md.get_label_frequencies_train(METADATA_FILE, ANNOT_DIR)
-label_weights = torch.tensor(1/(label_counts/np.sum(label_counts)), dtype=torch.float32).to('mps')
+label_weights = cdc.get_label_weights(dataset_train)
+# label_weights = torch.tensor(1/(label_counts/np.sum(label_counts)), dtype=torch.float32).to('mps')
 # Use loss function and optimizer geared towards unet (see https://github.com/milesial/Pytorch-UNet)
 loss_fn = torch.nn.CrossEntropyLoss(label_weights)  # loss function, weights added MW
 optimizer = torch.optim.Adam(modelUNet.parameters(), learning_rate)
 
-# Create data loaders    
-train_loader = DataLoader(mydataset_train, batch_size=BATCH_SIZE, shuffle=True)
+# Create data loaders 
+train_loader = DataLoader(dataset_train, batch_size=BATCH_SIZE, shuffle=True)
     # shuffle=True also makes sure that batch size is met
     # TEST WHETHER THIS IS CORRECT??!?!
 # generator = torch.Generator().manual_seed(42)
-val_loader = DataLoader(mydataset_test, batch_size=BATCH_SIZE, shuffle=True)
+val_loader = DataLoader(dataset_test, batch_size=BATCH_SIZE, shuffle=True)
 
 # 1 loop execution for testing
 # dataloader=train_loader; model=modelCNN
 if False:
-    #loss_tracker = mt.train_loop(train_loader, modelUNet, loss_fn, optimizer, len(mydataset_train), BATCH_SIZE)
-    #current_correct = mt.test_loop(val_loader, modelUNet, loss_fn, len(mydataset_test), BATCH_SIZE)
+    #loss_tracker = mt.train_loop(train_loader, modelUNet, loss_fn, optimizer, len(dataset_train), BATCH_SIZE)
+    #current_correct = mt.test_loop(val_loader, modelUNet, loss_fn, len(dataset_test), BATCH_SIZE)
     
     # let's see result after test loop
-    current_img, current_lbl = mydataset_train[1]
-    current_img, current_lbl = mydataset_test[0]
+    current_img, current_lbl = dataset_train[1]
+    current_img, current_lbl = dataset_test[0]
     X = current_img[None, :, :, :] 
     logits = modelUNet(X) # "logits" refers to raw, unnormalized outputs of the final layer of a neural network
     # plot the result
@@ -238,8 +248,8 @@ for t in range(epochs):
     start_time = time.time()
     
     # train and test
-    loss_tracker    = mt.train_loop(train_loader, modelUNet, loss_fn, optimizer, len(mydataset_train), BATCH_SIZE)
-    current_correct = mt.test_loop(val_loader, modelUNet, loss_fn, len(mydataset_test), BATCH_SIZE)
+    loss_tracker    = mt.train_loop(train_loader, modelUNet, loss_fn, optimizer, len(dataset_train), BATCH_SIZE)
+    current_correct = mt.test_loop(val_loader, modelUNet, loss_fn, len(dataset_test), BATCH_SIZE)
     
     # update scheduler
     scheduler.step()
