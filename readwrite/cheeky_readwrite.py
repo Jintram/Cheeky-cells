@@ -155,6 +155,47 @@ def loadimgfile_metadata(df_metadata, file_idx): # , metadatapath=None
     else:
         return img[segchannel]
     
+    
+def addsuffixtoonefilename(filename, suffix, newextension='.npy', extensionlist=['.npy', '.tif', '.jpg', '.png', '.nd2']):
+    '''
+    Add a suffix to a filename, replace the extension with another one if desired.
+    Default: change to .npy extension, set to None to keep original.    
+    
+    Will throw warning if original extension not in extensionlist.
+    '''
+    
+    # separate basename and extension
+    filename_base, filename_ext = os.path.splitext(filename)
+    
+    if newextension is not None:
+        filename_ext = newextension
+    
+    # Generate new filename    
+    newfilename = filename_base + suffix + filename_ext        
+    
+    # Raise warning if extension not in recognized list
+    if filename_ext not in extensionlist:
+        print(f'Warning: extension {filename_ext} not in recognized extension list.')
+        
+    return newfilename
+
+def addsuffixtofilenames(filename, suffix, newextension='.npy', extensionlist=['.npy', '.tif', '.jpg', '.png', '.nd2']):
+    '''
+    Will apply addsuffixtoonefilename to a single input or array.
+    (That function adds suffixes to a filename and replaces extension if desired.)
+    '''
+    
+    # Convert to array if necessary
+    filename = np.array(filename)
+    if len(filename.shape) == 0:
+        filename = filename.reshape(1)
+    
+    # Now apply to addsuffixtoonefilename()
+    newfilenames = \
+        [addsuffixtoonefilename(filename, suffix, newextension=newextension, extensionlist=extensionlist) for
+            filename in filename]
+         
+    return newfilenames
 
 
 def loadsegfile_metadata(df_metadata, file_idx, segfolder, suffix='_seg', silence=True):

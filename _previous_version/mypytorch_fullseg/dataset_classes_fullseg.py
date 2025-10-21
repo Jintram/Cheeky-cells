@@ -16,6 +16,7 @@ import torchvision.transforms as transforms
 import numpy as np
 
 from PIL import Image
+import warnings
 
 # custom code
 # import mypytorch_fullseg.mymodels_fullseg as mm
@@ -138,7 +139,7 @@ class ImageDataset_tiles(Dataset):
             torch.manual_seed(shared_seed)
             image = self.transform(image)
             torch.manual_seed(shared_seed)
-            label = self.transform_target(label)
+            label = self.transform_target(label)        
             
         return image.to(self.targetdevice), label.to(self.targetdevice)
 

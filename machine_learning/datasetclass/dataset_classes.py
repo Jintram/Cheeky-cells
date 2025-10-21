@@ -1,5 +1,5 @@
 
-
+# %% ################################################################################
 
 import sys
 import os
@@ -17,6 +17,11 @@ import numpy as np
 
 from PIL import Image
 
+import warnings
+
+import readwrite.cheeky_readwrite as crw
+    # import importlib; importlib.reload(crw)
+
 # custom code
 # import mypytorch_fullseg.mymodels_fullseg as mm
 # import mypytorch_fullseg.dataset_classes_fullseg as md
@@ -29,60 +34,42 @@ from PIL import Image
 # /Users/m.wehrens/Documents/git_repos/_UVA/2025_MW-testing-ML/simple-tutorial.ipynb
 
 
-def get_file_list_annotimgs_dloader(metadata_file, train_or_test):
+# %% ################################################################################
+
+def get_label_frequencies_train(df_metadata, segfiledir):
     '''
-    Metadata file should at least contain the columns 'filename' and 'train_or_test'.
+    Determines the label frequencies based on df_metadata filenames,
+    taking only 'train' samples.
+    
     '''
-    
-    # Load metadata, get filenames
-    metadata_table = pd.read_excel(metadata_file)
-    bool_selection_metadata = metadata_table['train_or_test'] == train_or_test
-    if bool_selection_metadata.sum() == 0:
-        raise ValueError(f"No entries found for {train_or_test} in metadata file.")
-    
-    print(f'Selecting {bool_selection_metadata.sum()} samples for {train_or_test}')
-    metadata_table_sel = metadata_table[bool_selection_metadata]
-    
-    # Get all sample names
-    list_all_imgfiles_original = metadata_table_sel['filename'].values
-    
-    # And the corresponding saved annotated data files
-    thefilelist_imgs =  [X.replace('.nd2', '_tile_img.npy') for X in list_all_imgfiles_original]
-    thefilelist_annot = [X.replace('.nd2', '_tile_annothuman.npy') for X in list_all_imgfiles_original]
-    thefilelist_extra = [X.replace('.nd2', '_tile_transform.npy') for X in list_all_imgfiles_original]
-    thefilelist_enhanced = [X.replace('.nd2', '_tile_img_enhanced.npy') for X in list_all_imgfiles_original]
-    thefilelist_annot_features = [X.replace('.nd2', '_tile_annothuman_features.npy') for X in list_all_imgfiles_original]
-    
-    return thefilelist_imgs, thefilelist_annot, thefilelist_extra, thefilelist_enhanced, thefilelist_annot_features
-         
-def get_label_frequencies_train(metadata_file, annot_dir):
-    # annot_dir='/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/20250328_FLUOPPI_humanseg/'
-    # metadata_file='/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/metadata_Fluoppi_data20250328_MACHINELEARN.xlsx'
         
-    thefilelist_imgs, \
-    thefilelist_annot, \
-    thefilelist_extra, \
-    thefilelist_enhanced, \
-    thefilelist_annot_features = \
-        get_file_list_annotimgs_dloader(metadata_file, 'train')
-    
-    counts_all=np.array([0]*4)
-    for sample_idx in range(len(thefilelist_annot_features)):
-        # sample_idx=0
-        # load image
-        current_annot = np.load(annot_dir + thefilelist_annot_features[sample_idx], allow_pickle=True)
-        # count frequency of values in the image
-        unique, counts = np.unique(current_annot, return_counts=True)
-        counts_all += counts
+    XXXX
     
     return (counts_all)
     
 
 class ImageDataset_tiles(Dataset):
-    '''
+    '''    
     This dataset class is aimed to load ±2000x2000 images, and 
-    using a transformer, should then respond with 500x500 crops
+    using a transformer, should then respond with 1000x1000 crops
     that are randomly selected/transformed as data output.
+    (Note: these resolutions can be changed.)
+    
+    Images and labels are assumed to be .npy format, stored
+    in the datadir, with filename as listed in df_metadata,
+    and suffix as specified by user.
+    
+    INPUT PARAMETERS:
+    - datadir: directory with training data and label files
+    - df_metadata: pandas df with metadata, with minimally 
+    the columns 'filename' and 'train_or_test'.
+    - train_or_test: set to 'training' or 'test', to generate
+    respective data sets.    
+    - ARTIFICIAL_N: including augmentation, how many samples it
+    will return.
+    - CROP_SIZE: size of cropping square, default 1000.
+    (To do: not sure cropping is necessary, as it's a fully conv
+    network.)
     
     Since the transformer does that latter part, this dataset
     should just load the data and the labels.
@@ -93,30 +80,28 @@ class ImageDataset_tiles(Dataset):
     specific features.
     '''
     
-    def __init__(self, annot_dir, metadata_file, train_or_test, transform=None, transform_target=None, 
-                 targetdevice="mps", SIZE_ARTIFICIAL=1000):#, add_dim=False):
+    def __init__(self, df_metadata, datadir, train_or_test, 
+                 img_suffix='_img', lbl_suffix='_seg_postpr', # img_suffix='_tile_img'; lbl_suffix='_tile_seg_postpr'
+                 transform=None, transform_label=None, 
+                 targetdevice="mps", ARTIFICIAL_N=1000, CROP_SIZE=1000):#, add_dim=False):
         
-        # first get lists of all the files that are required
-        self.thefilelist_imgs, \
-        self.thefilelist_annot, \
-        self.thefilelist_extra, \
-        self.thefilelist_enhanced, \
-        self.thefilelist_annot_features = \
-                get_file_list_annotimgs_dloader(metadata_file, train_or_test=train_or_test)
-                # metadata_file='/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/HUMAN_ANNOTATION/metadata_Fluoppi_data20250328_MACHINELEARN.xlsx'
+        # First get lists of all the files that are required
+        df_metadata_sel = df_metadata.loc[df_metadata['train_or_test'] == train_or_test].reset_index(drop=True)   
+        self.filelist_imgs   = crw.addsuffixtofilenames(df_metadata_sel['filename'].tolist(), suffix=img_suffix)
+        self.filelist_labels = crw.addsuffixtofilenames(df_metadata_sel['filename'].tolist(), suffix=lbl_suffix)
         
         # directory and device
-        self.annot_dir = annot_dir
+        self.datadir = datadir
         self.targetdevice = targetdevice
         
         # transforms        
         self.transform = transform
-        self.transform_target = transform_target
+        self.transform_label = transform_label
         
         # amount of actual samples
-        self.num_samples = len(self.thefilelist_imgs)
+        self.num_samples = len(self.filelist_imgs)
         # amount of samples it will say it have, set to SIZE_ARTIFICIAL unless more actual samples 
-        self.len_augment = max(len(self.thefilelist_imgs), SIZE_ARTIFICIAL)
+        self.len_augment = max(len(self.filelist_imgs), ARTIFICIAL_N)
 
     def __len__(self):
         return self.len_augment
@@ -128,8 +113,8 @@ class ImageDataset_tiles(Dataset):
         sample_idx = idx % self.num_samples
         
         # now produce the label and the image
-        image   = np.load(self.annot_dir + self.thefilelist_enhanced[sample_idx], allow_pickle=True)
-        label   = np.load(self.annot_dir + self.thefilelist_annot_features[sample_idx], allow_pickle=True)
+        image   = np.load(self.datadir + self.filelist_imgs[sample_idx], allow_pickle=True)
+        label   = np.load(self.datadir + self.filelist_labels[sample_idx], allow_pickle=True)
         
         # transform
         if self.transform:
@@ -139,7 +124,12 @@ class ImageDataset_tiles(Dataset):
             torch.manual_seed(shared_seed)
             image = self.transform(image)
             torch.manual_seed(shared_seed)
-            label = self.transform_target(label)
+            label = self.transform_label(label)            
+        else:
+            warnings.warn("Transform not set, returning original image!", UserWarning, stacklevel=2)   
+            # convert the image to a torch object
+            image = torch.tensor(image, dtype=torch.float32)
+            label = torch.tensor(label, dtype=torch.float32)                
             
         return image.to(self.targetdevice), label.to(self.targetdevice)
 
@@ -160,7 +150,7 @@ augmentation_pipeline_input = transforms.Compose([
     # transforms.Normalize(mean=[0.5], std=[0.5])  # Normalize (example for grayscale)
 ])
 
-augmentation_pipeline_target = transforms.Compose([
+augmentation_pipeline_label = transforms.Compose([
     transforms.Lambda(lambda x: Image.fromarray(x)), # convert to PIL image    
     transforms.RandomHorizontalFlip(p=0.5),  # Random horizontal flip
     transforms.RandomVerticalFlip(p=0.5),  # Random vertical flip
@@ -168,3 +158,7 @@ augmentation_pipeline_target = transforms.Compose([
     transforms.RandomCrop((500, 500)),  # Randomly crop 500x500 patches
     transforms.Lambda(lambda x: torch.tensor(np.array(x), dtype=torch.long))  # Convert to LongTensor
 ])
+
+# %%
+
+# %% ################################################################################

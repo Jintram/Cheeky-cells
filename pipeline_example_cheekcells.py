@@ -20,7 +20,9 @@ if SCRIPT_DIR not in sys.path: sys.path.append(SCRIPT_DIR)
 
 # standard libs
 import pandas as pd
+import matplotlib.pyplot as plt
 
+# custom libs
 import readwrite.cheeky_readwrite as crw
     # reload
     # import importlib; importlib.reload(crw)
@@ -72,15 +74,49 @@ cap.postprocess_basicsegfile_all(df_metadata, segfolder, suffix='_seg_postpr', s
 # %% ################################################################################
 # Now set up a dataset, model, and start training
 
-
-XXXX
-( update `machine_learning/datasetclass/dataset_classes.py` first)
-XXXX
-
-
-
-
+# !!! TO DO!!! # !!! TO DO!!! # !!! TO DO!!! # !!! TO DO!!! # !!! TO DO!!! 
+# 
+# Make this a bit more automated, but for now, let's also do technical stuff here
+#
+#
+# !!! TO DO!!! # !!! TO DO!!! # !!! TO DO!!! # !!! TO DO!!! # !!! TO DO!!! 
 
 
+from machine_learning.datasetclass import dataset_classes as cdc
+    # import importlib; importlib.reload(cdc)
+datadir = segfolder
+train_or_test = 'train'
+
+dataset_train = \
+    cdc.ImageDataset_tiles(df_metadata, datadir, train_or_test, 
+                    img_suffix='_tile_img', lbl_suffix='_tile_seg_postpr', # img_suffix='_tile_img'; lbl_suffix='_tile_seg_postpr'
+                    transform=cdc.augmentation_pipeline_input, 
+                    transform_label=cdc.augmentation_pipeline_label, 
+                    targetdevice="mps", ARTIFICIAL_N=1000, CROP_SIZE=1000)
+dataset_test = \
+    cdc.ImageDataset_tiles(df_metadata, datadir, 'test', 
+                    img_suffix='_tile_img', lbl_suffix='_tile_seg_postpr',
+                    transform=cdc.augmentation_pipeline_input, 
+                    transform_label=cdc.augmentation_pipeline_label, 
+                    targetdevice="mps", ARTIFICIAL_N=1000, CROP_SIZE=1000)
+
+# test if it works
+current_img, current_lbl = dataset_train[0]
+current_img, current_lbl = dataset_test[0]
+
+# now plot
+torch_img = current_img.cpu().squeeze()
+img_RGB   = torch_img.permute(1, 2, 0).numpy()
+plt.imshow(img_RGB, cmap='gray')
+plt.show()
+
+torch_lbl = current_lbl.cpu().squeeze()
+plt.imshow(torch_lbl, cmap='viridis')
+plt.show()
+
+
+# Now let's initialize the model
+from machine_learning.models_downloaded import unet_model as cunet
+    # import importlib; importlib.reload(cunet)
 
 # %%
