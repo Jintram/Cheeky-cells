@@ -11,6 +11,7 @@ subdirs = ['Cheek-Cells_resized_anonymous/']
 
 # Directory to place output
 outputdirectory = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/ANALYSIS/20251015/'
+segfolder = outputdirectory + 'humanseg/'
 
 # add scripts in this folder to path
 import sys
@@ -71,9 +72,7 @@ caa.annotate_all_pictures_aided(df_metadata,
 
 
 # %% ################################################################################
-
 # Now let's post-process the segmented files to get an improved training mask
-segfolder = outputdirectory + 'humanseg/'
 
 # Improve all basic segmentations, ie add boundaries proximity zones
 cap.postprocess_basicsegfile_all(df_metadata, segfolder, suffix='_seg_postpr', showplot=True)
@@ -85,6 +84,25 @@ cap.postprocess_basicsegfile_all(df_metadata, segfolder, suffix='_seg_postpr', s
 ### CODE BELOW IS STILL MESSY XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ### XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
+# %% ######################################################################
+# Attempting to deal with "MPS backend out or memory error"
+
+if torch.backends.mps.is_available():
+    torch.mps.empty_cache()
+    print("MPS cache cleared")
+
+
+del modelUNet
+del train_loader, val_loader
+del dataset_train, dataset_test
+
+import gc
+gc.collect()
+
+if hasattr(torch.mps, 'current_allocated_memory'):
+    print(f"MPS Memory: {torch.mps.current_allocated_memory() / 1024**2:.1f} MB")
+
+# %% ######################################################################
 
 # !!! TO DO!!! # !!! TO DO!!! # !!! TO DO!!! # !!! TO DO!!! # !!! TO DO!!! 
 # 
@@ -162,7 +180,7 @@ plt.imshow(logits[0,1,:,:].detach().cpu(), cmap='gray')
 ### settings
 
 learning_rate = 1e-3 # 1e-3
-BATCH_SIZE = 1
+BATCH_SIZE = 8
 
 # Custom weights for categories to be used in loss function
 label_weights = cdc.get_label_weights(dataset_train)
