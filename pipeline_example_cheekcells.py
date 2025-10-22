@@ -16,8 +16,10 @@ subdirs = ['Cheek-Cells_resized_anonymous/']
 outputdirectory = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/ANALYSIS/20251015/'
 segfolder = outputdirectory + 'humanseg/'
 modelfolder = outputdirectory + 'models/'
+pltfolder = outputdirectory + 'plots/'
 os.makedirs(modelfolder, exist_ok=True)
 os.makedirs(segfolder, exist_ok=True)
+os.makedirs(pltfolder, exist_ok=True)
 
 # add scripts in this folder to path
 import sys
@@ -289,17 +291,17 @@ if False:
 
 # define the learning rate during the procedure, using the scheduler
 # define fn
-def custom_lr_schedule(epoch):
+def custom_lr_schedule(epoch, step_len=50):
     ''' returns the learning rate scaling factor for the given epoch '''
-    lr_scalefactor = [1]*50 + [.1]*50 + [.01]*50 
-    if epoch >= 150:
-        epoch = 149
+    lr_scalefactor = [1]*step_len + [.1]*step_len + [.01]*step_len 
+    if epoch >= step_len*3:
+        epoch = step_len*3-1
     return lr_scalefactor[epoch]    
 # define scheduler
-scheduler = LambdaLR(optimizer, lr_lambda=custom_lr_schedule)
+scheduler = LambdaLR(optimizer, lr_lambda=lambda epoch: custom_lr_schedule(epoch, step_len=2))
 
 # training loop
-epochs = 2 # 150 # 30
+epochs = 6 # 150 # 30
 list_loss_tracker = []
 list_correct = []
 start_time_overall = time.time()
@@ -349,23 +351,38 @@ plt.plot(data_correctx, data_correcty)
 plt.show(); plt.close()
 
 # now once again apply the model and show the result
-current_img, current_lbl = dataset_test[0]
-X = current_img[None, :, :, :]
-logits = modelUNet(X) # "logits" refers to raw, unnormalized outputs of the final layer of a neural network
-# plot the result
-current_img = current_img.cpu().numpy()
-current_img_RGB = current_img.transpose(1,2,0)
-current_lbl = current_lbl.cpu().numpy()
-current_prd = logits.cpu().detach().numpy()
-fig, ax = plt.subplots(1, 3, figsize=(15*cm_to_inch, 5*cm_to_inch))
-ax[0].set_title('Image')
-ax[0].imshow(current_img_RGB)
-ax[1].set_title('Prediction')
-ax[1].imshow(current_prd[0].argmax(0), cmap='jet', vmin=0, vmax=4)
-ax[2].set_title('Truth')
-ax[2].imshow(current_lbl, cmap='jet', vmin=0, vmax=4)
-for idx in range(3):
-    ax[idx].set_xticks([]); ax[idx].set_yticks([])
-plt.show(); plt.close()
+
+for whichone in ['test', 'train']:
+    for idx in range(10):
+        
+        if whichone=='train':
+            current_img, current_lbl = dataset_train[idx]
+        elif whichone=='test':
+            current_img, current_lbl = dataset_test[idx]
+            
+        X = current_img[None, :, :, :]
+        logits = modelUNet(X) # "logits" refers to raw, unnormalized outputs of the final layer of a neural network
+        
+        # plot the result
+        current_img = current_img.cpu().numpy()
+        current_img_RGB = current_img.transpose(1,2,0)
+        current_lbl = current_lbl.cpu().numpy()
+        current_prd = logits.cpu().detach().numpy()
+        
+        # make plot
+        fig, ax = plt.subplots(1, 3, figsize=(15*cm_to_inch, 5*cm_to_inch))
+        #fig.suptitle(f'Dataset: {whichone}')
+        #ax[0].set_title('Image')
+        ax[0].imshow(current_img_RGB)
+        #ax[1].set_title('Prediction')
+        ax[1].imshow(current_prd[0].argmax(0), cmap='jet', vmin=0, vmax=4)
+        #ax[2].set_title('Truth')
+        ax[2].imshow(current_lbl, cmap='jet', vmin=0, vmax=4)
+        for idx_ax in range(3):
+            ax[idx_ax].set_xticks([]); ax[idx_ax].set_yticks([])
+        # plt.show(); plt.close()
+        # save it
+        plt.tight_layout()
+        plt.savefig(pltfolder + f'prediction_{whichone}_{idx:03d}.pdf', dpi=300)
 
 
