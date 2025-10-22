@@ -277,7 +277,7 @@ def annotate_pictures_aided(df_metadata, file_idx,
                             segfn = basicseg1,
                             intitial_segfolder = None, TILE_SIZE=2000,
                             tile_selection_by = 'maxvar', 
-                            ignore_saved_file=False, showplots=False, rescalelog=True, bg_percentile=.2):
+                            ignore_saved_file=False, showplots=False, rescalelog=True, bg_percentile=.2, showrawimg=False):
     '''
     
     '''
@@ -334,16 +334,33 @@ def annotate_pictures_aided(df_metadata, file_idx,
         print('Loaded image seg file:', newfilename_annot)
         img_seg0_tile = np.load(output_segfolder + newfilename_annot, allow_pickle=True)
             # plt.imshow(img_seg0_tile); plt.show(); plt.close()
-
-    # now improve this image in napari
+            
+    # now improve this image in napari 
+    quitloop_flag = False
+    
     viewer = napari.Viewer()
-    # img_cells_tile_rescaled = image_autorescale(img_cells_tile)
-    viewer.add_image(img_toseg_tile_rescaled)
+    if showrawimg:
+        viewer.add_image(img_toseg_tile)
+    else:
+        viewer.add_image(img_toseg_tile_rescaled)
 
     # add a label layer                           
     seg_layer = viewer.add_labels(name='segmentation', data=img_seg0_tile)
-    # viewer.close()
+
+    # define a callback that sets a flag and closes the viewer
+    def _on_quit(event=None):
+        nonlocal quitloop_flag # will change scope to one level higher (the enclosing function)
+        quitloop_flag = True
+        viewer.close()
+
+    # bind the 'q' key to close napari and signal quitting the outer loop
+    viewer.bind_key('q', _on_quit)
+    
+    # run napari event loop; when closed, check whether user requested quitting
     napari.run()
+        
+    if quitloop_flag:
+        return quitloop_flag
         
     # now save the annotation data
     print('Saving annotation data')
@@ -359,6 +376,8 @@ def annotate_pictures_aided(df_metadata, file_idx,
         ax.imshow(img_toseg_tile)
         ax.contour(seg_layer_data, levels=[0.5], colors='red')    
         plt.show(); plt.close()
+    
+    return quitloop_flag
 
 
 
@@ -368,7 +387,7 @@ def annotate_all_pictures_aided(df_metadata, output_segfolder,
                                 intitial_segfolder = None, TILE_SIZE=2000,
                                 tile_selection_by = 'maxvar', segfn=basicseg1,
                                 ignore_saved_file=False, showplots=False,
-                                rescalelog = True, bg_percentile=.2):
+                                rescalelog = True, bg_percentile=.2, showrawimg=False):
     '''
     
     '''
@@ -391,13 +410,17 @@ def annotate_all_pictures_aided(df_metadata, output_segfolder,
     # for file_idx in range(11, df_metadata.shape[0]): 
         print('=======')
         print(f'Processing file {file_idx+1} of {df_metadata.shape[0]}')
-        annotate_pictures_aided(df_metadata, file_idx, 
-                            output_segfolder, 
-                            segfn=segfn,
-                            intitial_segfolder = intitial_segfolder, TILE_SIZE=TILE_SIZE,
-                            tile_selection_by = tile_selection_by, 
-                            ignore_saved_file=ignore_saved_file, showplots=showplots,
-                            rescalelog=rescalelog, bg_percentile=bg_percentile)
+        quitloop_flag = \
+            annotate_pictures_aided(df_metadata, file_idx, 
+                                output_segfolder, 
+                                segfn=segfn,
+                                intitial_segfolder = intitial_segfolder, TILE_SIZE=TILE_SIZE,
+                                tile_selection_by = tile_selection_by, 
+                                ignore_saved_file=ignore_saved_file, showplots=showplots,
+                                rescalelog=rescalelog, bg_percentile=bg_percentile, showrawimg=showrawimg)
+        if quitloop_flag:
+            print('Quitting annotation loop as requested by user.')
+            break
         
                             
                             
