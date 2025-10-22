@@ -9,11 +9,11 @@ import os
 SCRIPT_DIR = '/Users/m.wehrens/Documents/git_repos/_UVA/2025_Cheeky-cells/'
 
 # Directory with image files
-basedirectory = '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/'
+basedirectory = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/'
 subdirs = ['SELECTION_ML/Cropped/']
 
 # Directory to place output
-outputdirectory = '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/ANALYSIS/202510/'
+outputdirectory = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/'
 segfolder = outputdirectory + 'humanseg/'
 modelfolder = outputdirectory + 'models/'
 pltfolder = outputdirectory + 'plots/'
