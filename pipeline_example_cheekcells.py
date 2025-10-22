@@ -3,6 +3,9 @@
 # %% ################################################################################
 # Some settings
 
+import sys
+import os
+
 SCRIPT_DIR = '/Users/m.wehrens/Documents/git_repos/_UVA/2025_Cheeky-cells/'
 
 # Directory with image files
@@ -12,6 +15,9 @@ subdirs = ['Cheek-Cells_resized_anonymous/']
 # Directory to place output
 outputdirectory = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/ANALYSIS/20251015/'
 segfolder = outputdirectory + 'humanseg/'
+modelfolder = outputdirectory + 'models/'
+os.makedirs(modelfolder, exist_ok=True)
+os.makedirs(segfolder, exist_ok=True)
 
 # add scripts in this folder to path
 import sys
@@ -24,6 +30,7 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import torch
 import numpy as np
+import time
 
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor, Lambda
@@ -60,6 +67,8 @@ df_metadata = pd.read_excel(metadata_filepath)
 # %% ################################################################################
 
 # Loop over the files to create the ground truth 
+#
+# This also creates the rescaled images
 caa.annotate_all_pictures_aided(df_metadata, 
                                 output_segfolder=outputdirectory + 'humanseg/',
                                 intitial_segfolder=None,
@@ -68,7 +77,7 @@ caa.annotate_all_pictures_aided(df_metadata,
                                 segfn=caa.basicseg2,
                                 ignore_saved_file=False,
                                 showplots=False,
-                                rescalelog=False)
+                                rescalelog=False, bg_percentile=10)
 
 
 # %% ################################################################################
@@ -119,13 +128,13 @@ train_or_test = 'train'
 
 dataset_train = \
     cdc.ImageDataset_tiles(df_metadata, datadir, train_or_test, 
-                    img_suffix='_tile_img', lbl_suffix='_tile_seg_postpr', # img_suffix='_tile_img'; lbl_suffix='_tile_seg_postpr'
+                    img_suffix='_tile_img_enhanced', lbl_suffix='_tile_seg_postpr', # img_suffix='_tile_img'; lbl_suffix='_tile_seg_postpr'
                     transform=cdc.augmentation_pipeline_input, 
                     transform_label=cdc.augmentation_pipeline_label, 
                     targetdevice="mps", ARTIFICIAL_N=1000, CROP_SIZE=1000)
 dataset_test = \
     cdc.ImageDataset_tiles(df_metadata, datadir, 'test', 
-                    img_suffix='_tile_img', lbl_suffix='_tile_seg_postpr',
+                    img_suffix='_tile_img_enhanced', lbl_suffix='_tile_seg_postpr',
                     transform=cdc.augmentation_pipeline_input, 
                     transform_label=cdc.augmentation_pipeline_label, 
                     targetdevice="mps", ARTIFICIAL_N=1000, CROP_SIZE=1000)
@@ -145,6 +154,39 @@ plt.show()
 torch_lbl = current_lbl.cpu().squeeze().numpy()
 plt.imshow(torch_lbl, cmap='viridis')
 plt.show()
+
+# %% ################################################################################
+# testing some stuff
+
+# load a raw image
+img1 = np.load(dataset_test.datadir + dataset_test.filelist_imgs[2])
+img1 = np.load(dataset_test.datadir + 'img_0001_tile_img_enhanced.npy')
+img1 = crw.loadimgfile_metadata(df_metadata, 0)
+    # plt.imshow(img1); plt.show()
+
+RGB_min = np.min(img1, axis=(0,1))
+RGB_pct = np.percentile(img1, 1, axis=(0,1))
+
+# now re-normalize, per color
+img1_norm2 = img1 - RGB_min[None,None,:]
+np.min(img1_norm2, axis=(0,1))
+
+plt.imshow(img1_norm2); plt.show()
+
+# sanity check
+# plt.imshow([[[196,143,0],[196,143,0]], [[196,143,0],[196,143,0]]]); plt.show()
+
+import importlib; importlib.reload(caa)
+
+# why doesn't the automatic rescale function doesn't work like this?
+img1_ri = caa.image_autorescale(img1, rescalelog=False, bg_percentile=10)
+plt.imshow(img1); plt.show()
+plt.imshow(img1_ri); plt.show()
+
+img1=tiles[idx_tile_sel]
+plt.imshow(img1); plt.show()
+
+plt.imshow(img_toseg); plt.show()
 
 # %% ################################################################################
 # Now let's initialize the model
@@ -172,6 +214,8 @@ plt.imshow(logits[0,1,:,:].detach().cpu(), cmap='gray')
 
 # %% ################################################################################
 
+from machine_learning.trainer import trainer as ct
+
 # Now let's train the network
 
 # libraries
@@ -183,7 +227,7 @@ learning_rate = 1e-3 # 1e-3
 BATCH_SIZE = 8
 
 # Custom weights for categories to be used in loss function
-label_weights = cdc.get_label_weights(dataset_train)
+label_weights = cdc.get_label_weights(dataset_train, suffix_img='_tile_img_enhanced', suffix_lbl='_tile_seg_postpr')
 # label_weights = torch.tensor(1/(label_counts/np.sum(label_counts)), dtype=torch.float32).to('mps')
 # Use loss function and optimizer geared towards unet (see https://github.com/milesial/Pytorch-UNet)
 loss_fn = torch.nn.CrossEntropyLoss(label_weights)  # loss function, weights added MW
@@ -255,19 +299,19 @@ def custom_lr_schedule(epoch):
 scheduler = LambdaLR(optimizer, lr_lambda=custom_lr_schedule)
 
 # training loop
-epochs = 150 # 30
+epochs = 2 # 150 # 30
 list_loss_tracker = []
 list_correct = []
 start_time_overall = time.time()
-for t in range(epochs):
+for t in range(epochs): # t = 0
     
     print('='*30)
     print(f"Epoch {t+1}, LR: {scheduler.get_last_lr()}")
     start_time = time.time()
     
     # train and test
-    loss_tracker    = mt.train_loop(train_loader, modelUNet, loss_fn, optimizer, len(dataset_train), BATCH_SIZE)
-    current_correct = mt.test_loop(val_loader, modelUNet, loss_fn, len(dataset_test), BATCH_SIZE)
+    loss_tracker    = ct.train_loop(train_loader, modelUNet, loss_fn, optimizer, len(dataset_train), BATCH_SIZE)
+    current_correct = ct.test_loop(val_loader, modelUNet, loss_fn, len(dataset_test), BATCH_SIZE)
     
     # update scheduler
     scheduler.step()
@@ -287,7 +331,7 @@ print("Done!")
 
 # save the model
 current_time_formatted = time.strftime("%Y%m%d_%H%M")
-torch.save(modelUNet.state_dict(), DIR_SAVE_MODELS+'modelUNet'+current_time_formatted+'.pth')
+torch.save(modelUNet.state_dict(), modelfolder+'modelUNet'+current_time_formatted+'.pth')
 
 # Now plot the loss over time
 datay = np.array(list_loss_tracker).flatten()
@@ -302,6 +346,26 @@ data_correctx = np.linspace(datax[-1]/epochs, datax[-1], epochs)
 data_correcty = np.array(list_correct)
 plt.plot(data_correctx, data_correcty)
 
+plt.show(); plt.close()
+
+# now once again apply the model and show the result
+current_img, current_lbl = dataset_test[0]
+X = current_img[None, :, :, :]
+logits = modelUNet(X) # "logits" refers to raw, unnormalized outputs of the final layer of a neural network
+# plot the result
+current_img = current_img.cpu().numpy()
+current_img_RGB = current_img.transpose(1,2,0)
+current_lbl = current_lbl.cpu().numpy()
+current_prd = logits.cpu().detach().numpy()
+fig, ax = plt.subplots(1, 3, figsize=(15*cm_to_inch, 5*cm_to_inch))
+ax[0].set_title('Image')
+ax[0].imshow(current_img_RGB)
+ax[1].set_title('Prediction')
+ax[1].imshow(current_prd[0].argmax(0), cmap='jet', vmin=0, vmax=4)
+ax[2].set_title('Truth')
+ax[2].imshow(current_lbl, cmap='jet', vmin=0, vmax=4)
+for idx in range(3):
+    ax[idx].set_xticks([]); ax[idx].set_yticks([])
 plt.show(); plt.close()
 
 

@@ -46,15 +46,16 @@ cm_to_inch = 1/2.54
 
 # %% #################################################################################
 
-def subtractbaseline(anarray, est_base_pct=.2):
+def subtractbaseline(anarray, bg_percentile=.2):
     
-    thresholdlow = np.percentile(anarray, est_base_pct)
-    anarray[anarray<=thresholdlow] = thresholdlow
+    thresholdlow = np.percentile(anarray, bg_percentile)
+    anarray[anarray < thresholdlow] = thresholdlow
+    anarray = anarray - thresholdlow
     
     return anarray
 
 
-def image_autorescale(input_img, rescalelog=True):
+def image_autorescale(input_img, rescalelog=True, bg_percentile=.2):
     # input_img=np.zeros([20,20])
     # input_img=img_toseg
     
@@ -72,9 +73,9 @@ def image_autorescale(input_img, rescalelog=True):
     new_img = np.zeros_like(input_img)
     for ch_idx in range(input_img.shape[2]): # ch_idx = 0 
         if rescalelog:  
-            new_img[:,:,ch_idx] = np.log(.1+subtractbaseline(input_img[:,:,ch_idx]))
+            new_img[:,:,ch_idx] = np.log(.1+subtractbaseline(input_img[:,:,ch_idx], bg_percentile=bg_percentile))
         else:
-            new_img[:,:,ch_idx] = subtractbaseline(input_img[:,:,ch_idx])
+            new_img[:,:,ch_idx] = subtractbaseline(input_img[:,:,ch_idx], bg_percentile=bg_percentile)
         
     # rescale to range 0-255
     new_img = rescale_intensity(new_img, 'image', (0, 255))
@@ -132,7 +133,7 @@ def basicseg2(img):
 
 def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=basicseg1,
                                showedgepic=False, tile_selection_by='maxvar', showplots=True,
-                               folder_devplots=None, rescalelog=True):
+                               folder_devplots=None, rescalelog=True, bg_percentile=.2):
     '''    
     TO DO: This function is still slightly messy!
         Perhaps make it more modular?
@@ -225,7 +226,8 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=
     # generate a new segmentation of the tile based on otsu method
     #current_tile_log = subtractbaseline(np.log(tiles[idx_tile_sel] + .1))
     # current_tile_rescaled = image_autorescale(tiles[idx_tile_sel])
-    current_tile_rescaled     = image_autorescale(tiles[idx_tile_sel], rescalelog=rescalelog)    
+    current_tile_rescaled     = image_autorescale(tiles[idx_tile_sel], rescalelog=rescalelog, bg_percentile=bg_percentile)
+        # plt.imshow(tiles[idx_tile_sel]);plt.show()
         # plt.imshow(current_tile_rescaled); plt.show()
         
     # If no segmentation exists, just try something basic
@@ -275,7 +277,7 @@ def annotate_pictures_aided(df_metadata, file_idx,
                             segfn = basicseg1,
                             intitial_segfolder = None, TILE_SIZE=2000,
                             tile_selection_by = 'maxvar', 
-                            ignore_saved_file=False, showplots=False, rescalelog=True):
+                            ignore_saved_file=False, showplots=False, rescalelog=True, bg_percentile=.2):
     '''
     
     '''
@@ -285,7 +287,7 @@ def annotate_pictures_aided(df_metadata, file_idx,
     # intitial_segfolder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/Cheek-Cells_resized_anonymous_seg25/'
     # output_segfolder = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/ANALYSIS/20251015/humanseg/'
     #
-    # tile_selection_by = 'maxvar'; ignore_saved_file=False; showplots=False
+    # tile_selection_by = 'maxvar'; ignore_saved_file=False; showplots=False; TILE_SIZE=1000; rescalelog=False; segfn=basicseg2
     
     if file_idx is None:
         raise ValueError('file_idx should be specified.')
@@ -314,7 +316,7 @@ def annotate_pictures_aided(df_metadata, file_idx,
     img_toseg_tile, img_seg0_tile, img_toseg_tile_edges, img_toseg_tile_rescaled = \
         annothelp_tile_and_segment(img_toseg, img_annot=img_annot, TILE_SIZE=TILE_SIZE, segfn=segfn,
                                 showedgepic=False, tile_selection_by=tile_selection_by, showplots=showplots,
-                                folder_devplots=None, rescalelog=rescalelog)
+                                folder_devplots=None, rescalelog=rescalelog, bg_percentile=bg_percentile)
         # plt.imshow(img_toseg_tile); plt.show()
         # plt.imshow(img_seg0_tile); plt.show()
         # plt.imshow(img_toseg_tile_rescaled); plt.show()
@@ -366,7 +368,7 @@ def annotate_all_pictures_aided(df_metadata, output_segfolder,
                                 intitial_segfolder = None, TILE_SIZE=2000,
                                 tile_selection_by = 'maxvar', segfn=basicseg1,
                                 ignore_saved_file=False, showplots=False,
-                                rescalelog = True):
+                                rescalelog = True, bg_percentile=.2):
     '''
     
     '''
@@ -395,7 +397,7 @@ def annotate_all_pictures_aided(df_metadata, output_segfolder,
                             intitial_segfolder = intitial_segfolder, TILE_SIZE=TILE_SIZE,
                             tile_selection_by = tile_selection_by, 
                             ignore_saved_file=ignore_saved_file, showplots=showplots,
-                            rescalelog=rescalelog)
+                            rescalelog=rescalelog, bg_percentile=bg_percentile)
         
                             
                             

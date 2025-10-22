@@ -36,7 +36,7 @@ import readwrite.cheeky_readwrite as crw
 
 # %% ################################################################################
 
-def get_label_frequencies(dataset):
+def get_label_frequencies(dataset, suffix_img, suffix_lbl):
     '''
     Determines the label frequencies based on file list in 
     dataset class ImageDataset_tiles.filelist_imgs.    
@@ -46,7 +46,7 @@ def get_label_frequencies(dataset):
     allfilepaths = [dataset.datadir + filename for filename in dataset.filelist_imgs]
     
     # loop over all training data, count labels
-    stats_all = [np.bincount(np.load(filepath.replace('_img', '_seg_postpr'), allow_pickle=True).flatten())
+    stats_all = [np.bincount(np.load(filepath.replace(suffix_img, suffix_lbl), allow_pickle=True).flatten())
                  for filepath in allfilepaths]    
     
     # now sum
@@ -58,14 +58,14 @@ def get_label_frequencies(dataset):
     
     return label_counts
     
-def get_label_weights(dataset, device='mps'):
+def get_label_weights(dataset, suffix_img, suffix_lbl, device='mps'):
     '''
     Determine label weights based on frequencies in dataset.
     Based on file list in dataset class ImageDataset_tiles.filelist_imgs. 
     Returns a tensor on "device".
     '''
     
-    label_counts = get_label_frequencies(dataset)
+    label_counts = get_label_frequencies(dataset, suffix_img, suffix_lbl)
     label_weights = torch.tensor(1/(label_counts/np.sum(label_counts)), dtype=torch.float32).to(device)
     
     return label_weights
