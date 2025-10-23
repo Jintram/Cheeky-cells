@@ -75,6 +75,7 @@ import annotating_data.dedicated_segmentation as cds
 # Loop over the files to create the ground truth 
 #
 # Current classifciation
+# 0 = background
 # 1 = shoot
 # 2 = root
 # 3 = boundary root/shoot
@@ -98,8 +99,12 @@ caa.annotate_all_pictures_aided(df_metadata,
 # %% ################################################################################
 # Now let's post-process the segmented files to get an improved training mask
 
+# A FUNCTION COULD BE ADDED HERE TO IMPROVE THE SEGMENTATIONS AUTOMATICALLY
+# FOR THE ARABIDOPSIS DATA, THIS WAS NOT DONE..
+
+# Commented out because not necessary (postprocess_basicsegfile_all() is aimed at binary masks of cells)
 # Improve all basic segmentations, ie add boundaries proximity zones
-cap.postprocess_basicsegfile_all(df_metadata, segfolder, suffix='_seg_postpr', showplot=True)
+# cap.postprocess_basicsegfile_all(df_metadata, segfolder, suffix='_seg_postpr', showplot=True)
 
 # %% ################################################################################
 # Now set up a dataset, model, and start training
@@ -108,23 +113,6 @@ cap.postprocess_basicsegfile_all(df_metadata, segfolder, suffix='_seg_postpr', s
 ### CODE BELOW IS STILL MESSY XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 ### XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
 
-# %% ######################################################################
-# Attempting to deal with "MPS backend out or memory error"
-
-if torch.backends.mps.is_available():
-    torch.mps.empty_cache()
-    print("MPS cache cleared")
-
-
-del modelUNet
-del train_loader, val_loader
-del dataset_train, dataset_test
-
-import gc
-gc.collect()
-
-if hasattr(torch.mps, 'current_allocated_memory'):
-    print(f"MPS Memory: {torch.mps.current_allocated_memory() / 1024**2:.1f} MB")
 
 # %% ######################################################################
 
@@ -143,13 +131,13 @@ train_or_test = 'train'
 
 dataset_train = \
     cdc.ImageDataset_tiles(df_metadata, datadir, train_or_test, 
-                    img_suffix='_tile_img_enhanced', lbl_suffix='_tile_seg_postpr', # img_suffix='_tile_img'; lbl_suffix='_tile_seg_postpr'
+                    img_suffix='_tile_img_enhanced', lbl_suffix='_tile_seg', # img_suffix='_tile_img'; lbl_suffix='_tile_seg_postpr'
                     transform=cdc.augmentation_pipeline_input, 
                     transform_label=cdc.augmentation_pipeline_label, 
                     targetdevice="mps", ARTIFICIAL_N=1000, CROP_SIZE=1000)
 dataset_test = \
     cdc.ImageDataset_tiles(df_metadata, datadir, 'test', 
-                    img_suffix='_tile_img_enhanced', lbl_suffix='_tile_seg_postpr',
+                    img_suffix='_tile_img_enhanced', lbl_suffix='_tile_seg',
                     transform=cdc.augmentation_pipeline_input, 
                     transform_label=cdc.augmentation_pipeline_label, 
                     targetdevice="mps", ARTIFICIAL_N=1000, CROP_SIZE=1000)
@@ -170,38 +158,6 @@ torch_lbl = current_lbl.cpu().squeeze().numpy()
 plt.imshow(torch_lbl, cmap='viridis')
 plt.show()
 
-# %% ################################################################################
-# testing some stuff
-
-# load a raw image
-img1 = np.load(dataset_test.datadir + dataset_test.filelist_imgs[2])
-img1 = np.load(dataset_test.datadir + 'img_0001_tile_img_enhanced.npy')
-img1 = crw.loadimgfile_metadata(df_metadata, 0)
-    # plt.imshow(img1); plt.show()
-
-RGB_min = np.min(img1, axis=(0,1))
-RGB_pct = np.percentile(img1, 1, axis=(0,1))
-
-# now re-normalize, per color
-img1_norm2 = img1 - RGB_min[None,None,:]
-np.min(img1_norm2, axis=(0,1))
-
-plt.imshow(img1_norm2); plt.show()
-
-# sanity check
-# plt.imshow([[[196,143,0],[196,143,0]], [[196,143,0],[196,143,0]]]); plt.show()
-
-import importlib; importlib.reload(caa)
-
-# why doesn't the automatic rescale function doesn't work like this?
-img1_ri = caa.image_autorescale(img1, rescalelog=False, bg_percentile=10)
-plt.imshow(img1); plt.show()
-plt.imshow(img1_ri); plt.show()
-
-img1=tiles[idx_tile_sel]
-plt.imshow(img1); plt.show()
-
-plt.imshow(img_toseg); plt.show()
 
 # %% ################################################################################
 # Now let's initialize the model
@@ -209,7 +165,7 @@ plt.imshow(img_toseg); plt.show()
 from machine_learning.model import unet_model as cunet
     # import importlib; importlib.reload(cunet)
 
-modelUNet = cunet.UNet(n_channels=3, n_classes=4).to("mps")
+modelUNet = cunet.UNet(n_channels=3, n_classes=6).to("mps")
 
 ### testing
 
@@ -242,7 +198,7 @@ learning_rate = 1e-3 # 1e-3
 BATCH_SIZE = 8
 
 # Custom weights for categories to be used in loss function
-label_weights = cdc.get_label_weights(dataset_train, suffix_img='_tile_img_enhanced', suffix_lbl='_tile_seg_postpr')
+label_weights = cdc.get_label_weights(dataset_train, suffix_img='_tile_img_enhanced', suffix_lbl='_tile_seg')
 # label_weights = torch.tensor(1/(label_counts/np.sum(label_counts)), dtype=torch.float32).to('mps')
 # Use loss function and optimizer geared towards unet (see https://github.com/milesial/Pytorch-UNet)
 loss_fn = torch.nn.CrossEntropyLoss(label_weights)  # loss function, weights added MW
@@ -363,6 +319,26 @@ plt.plot(data_correctx, data_correcty)
 
 plt.show(); plt.close()
 
+# Let's set a custom color scheme
+custom_colors_plantclasses = \
+    [   # background black
+        '#000000', 
+        # shoot light green
+        '#90EE90',
+        # root white
+        '#FFFFFF', 
+        # boundary root/shoot yellow
+        '#FFFF00', 
+        # seed brown
+        '#A52A2A', 
+        # leaf darkgreen
+        '#006400' 
+        ]
+# Create a custom cmap
+from matplotlib.colors import ListedColormap
+cmap_plantclasses = ListedColormap(custom_colors_plantclasses)
+ 
+
 # now once again apply the model and show the result
 
 for whichone in ['test', 'train']:
@@ -388,9 +364,9 @@ for whichone in ['test', 'train']:
         #ax[0].set_title('Image')
         ax[0].imshow(current_img_RGB)
         #ax[1].set_title('Prediction')
-        ax[1].imshow(current_prd[0].argmax(0), cmap='jet', vmin=0, vmax=4)
+        ax[1].imshow(current_prd[0].argmax(0), cmap=cmap_plantclasses, vmin=0, vmax=5)
         #ax[2].set_title('Truth')
-        ax[2].imshow(current_lbl, cmap='jet', vmin=0, vmax=4)
+        ax[2].imshow(current_lbl, cmap=cmap_plantclasses, vmin=0, vmax=5)  
         for idx_ax in range(3):
             ax[idx_ax].set_xticks([]); ax[idx_ax].set_yticks([])
         # plt.show(); plt.close()
