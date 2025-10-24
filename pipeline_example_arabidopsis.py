@@ -54,10 +54,11 @@ cm_to_inch = 1/2.54
 
 # %% ################################################################################
 
-# First generate the metadata file
-crw.gen_metadatafile(basedirectory, subdirs, outputdirectory)
-    # This will auto-generate a metadata file with all image files in the specified folder.
-    # It should be manually edited, and stored as an excel file (at metadata_filepath)
+if False:
+    # First generate the metadata file
+    crw.gen_metadatafile(basedirectory, subdirs, outputdirectory)
+        # This will auto-generate a metadata file with all image files in the specified folder.
+        # It should be manually edited, and stored as an excel file (at metadata_filepath)
 
 # Now update the metadata file location, after editing the auto-generated file and saving under custom name
 metadata_customized_filename = 'metadata_imagefiles_manual20251022.xlsx'
@@ -78,9 +79,8 @@ import annotating_data.dedicated_segmentation as cds
 # 0 = background
 # 1 = shoot
 # 2 = root
-# 3 = boundary root/shoot
-# 4 = seed
-# 5 = leaf
+# 3 = seed
+# 4 = leaf
 #
 # This also creates the rescaled images
 caa.annotate_all_pictures_aided(df_metadata, 
@@ -94,6 +94,9 @@ caa.annotate_all_pictures_aided(df_metadata,
                                 rescalelog=False, bg_percentile=10, showrawimg=True)
 # output_segfolder=outputdirectory + 'humanseg/'; intitial_segfolder=None; TILE_SIZE=1000; tile_selection_by='maxvar';
 # segfn=caa.basicseg2; ignore_saved_file=False; showplots=False; rescalelog=False; bg_percentile=10
+
+
+
 
 
 # %% ################################################################################
@@ -165,7 +168,8 @@ plt.show()
 from machine_learning.model import unet_model as cunet
     # import importlib; importlib.reload(cunet)
 
-modelUNet = cunet.UNet(n_channels=3, n_classes=6).to("mps")
+NR_CLASSES=5
+modelUNet = cunet.UNet(n_channels=3, n_classes=NR_CLASSES).to("mps")
 
 ### testing
 
@@ -186,7 +190,8 @@ plt.imshow(logits[0,1,:,:].detach().cpu(), cmap='gray')
 # %% ################################################################################
 
 from machine_learning.trainer import trainer as ct
-
+    # import importlib; importlib.reload(ct)
+    
 # Now let's train the network
 
 # libraries
@@ -304,6 +309,9 @@ print("Done!")
 current_time_formatted = time.strftime("%Y%m%d_%H%M")
 torch.save(modelUNet.state_dict(), modelfolder+'modelUNet'+current_time_formatted+'.pth')
 
+# %% ################################################################################
+# Now some plotting of the results
+
 # Now plot the loss over time
 datay = np.array(list_loss_tracker).flatten()
 datax = np.array(range(len(datay)))*100
@@ -327,8 +335,6 @@ custom_colors_plantclasses = \
         '#90EE90',
         # root white
         '#FFFFFF', 
-        # boundary root/shoot yellow
-        '#FFFF00', 
         # seed brown
         '#A52A2A', 
         # leaf darkgreen
@@ -337,10 +343,46 @@ custom_colors_plantclasses = \
 # Create a custom cmap
 from matplotlib.colors import ListedColormap
 cmap_plantclasses = ListedColormap(custom_colors_plantclasses)
- 
+
+def sidebysideplot(current_img_RGB, current_prd, current_lbl, pltfolder):
+
+    # make plot
+    fig, ax = plt.subplots(1, 3, figsize=(15*cm_to_inch, 5*cm_to_inch))
+    #fig.suptitle(f'Dataset: {whichone}')
+    #ax[0].set_title('Image')
+    ax[0].imshow(current_img_RGB)
+    #ax[1].set_title('Prediction')
+    ax[1].imshow(current_prd[0].argmax(0), cmap=cmap_plantclasses, vmin=0, vmax=5)
+    #ax[2].set_title('Truth')
+    ax[2].imshow(current_lbl, cmap=cmap_plantclasses, vmin=0, vmax=5)  
+    for idx_ax in range(3):
+        ax[idx_ax].set_xticks([]); ax[idx_ax].set_yticks([])
+    # plt.show(); plt.close()
+    # save it
+    plt.tight_layout()
+    plt.savefig(pltfolder + f'prediction_{whichone}_{idx:03d}.pdf', dpi=300)
+
+def overlayplot(current_img_RGB, current_prd, current_lbl, pltfolder):
+    
+    current_pred_lbl = current_prd[0].argmax(0)
+    
+    # translate the current_pred_lbl by padding on the left side with zeroes
+    current_pred_lbl_transl = current_pred_lbl.copy()
+    current_pred_lbl_transl = np.pad(current_pred_lbl, ((0,0),(20,0)), 'constant', constant_values=0)
+    
+    # now plot
+    fig, ax = plt.subplots(1, 2, figsize=(10*cm_to_inch, 5*cm_to_inch))
+    
+    ax[0].imshow(current_img_RGB)    
+    ax[0].imshow(current_pred_lbl_transl, cmap=cmap_plantclasses, vmin=0, vmax=5, alpha=1.0*(current_pred_lbl_transl>0))
+    
+    ax[1].imshow(current_lbl, cmap=cmap_plantclasses, vmin=0, vmax=5)  
+    
+    plt.tight_layout()
+    plt.savefig(pltfolder + f'predictionoverlay_{whichone}_{idx:03d}.pdf', dpi=300)
+    
 
 # now once again apply the model and show the result
-
 for whichone in ['test', 'train']:
     for idx in range(10):
         
@@ -358,20 +400,26 @@ for whichone in ['test', 'train']:
         current_lbl = current_lbl.cpu().numpy()
         current_prd = logits.cpu().detach().numpy()
         
-        # make plot
-        fig, ax = plt.subplots(1, 3, figsize=(15*cm_to_inch, 5*cm_to_inch))
-        #fig.suptitle(f'Dataset: {whichone}')
-        #ax[0].set_title('Image')
-        ax[0].imshow(current_img_RGB)
-        #ax[1].set_title('Prediction')
-        ax[1].imshow(current_prd[0].argmax(0), cmap=cmap_plantclasses, vmin=0, vmax=5)
-        #ax[2].set_title('Truth')
-        ax[2].imshow(current_lbl, cmap=cmap_plantclasses, vmin=0, vmax=5)  
-        for idx_ax in range(3):
-            ax[idx_ax].set_xticks([]); ax[idx_ax].set_yticks([])
-        # plt.show(); plt.close()
-        # save it
-        plt.tight_layout()
-        plt.savefig(pltfolder + f'prediction_{whichone}_{idx:03d}.pdf', dpi=300)
+        # now calculate the accuracy
+        correct_pixels = (current_prd[0].argmax(0) == current_lbl)
+        accuracy = np.sum(correct_pixels) / correct_pixels.size
+        print(f'Accuracy for {whichone} image {idx}: {accuracy*100:.2f} %')
+        
+        sidebysideplot(current_img_RGB, current_prd, current_lbl, pltfolder)
+        overlayplot(current_img_RGB, current_prd, current_lbl, pltfolder)
+
+
+# %% ################################################################################
+# 
+
+
+
+
+
+
+
+
+
+
 
 
