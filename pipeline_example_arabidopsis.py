@@ -369,20 +369,30 @@ def sidebysideplot(current_img_RGB, current_prd, current_lbl, whichone, pltfolde
     plt.savefig(pltfolder + f'prediction_{whichone}_{idx:03d}.pdf', dpi=300)
 
 def overlayplot(current_img_RGB, current_prd, current_lbl, whichone, pltfolder):
+    # current_img_RGB=img_test_crop_norm, current_prd=img_pred_lbls, current_lbl=np.zeros_like(img_pred_lbls); whichone='fullimage_test'
     
-    current_pred_lbl = current_prd[0].argmax(0)
+    # apply arg-max if not done yet
+    if current_prd.ndim > 2:
+        current_pred_lbl = current_prd[0].argmax(0)
+    else:
+        current_pred_lbl = current_prd
     
     # translate the current_pred_lbl by padding on the left side with zeroes
     current_pred_lbl_transl = current_pred_lbl.copy()
     current_pred_lbl_transl = np.pad(current_pred_lbl, ((0,0),(20,0)), 'constant', constant_values=0)
     
+    img_shape_ratio = current_img_RGB.shape[1] / current_img_RGB.shape[0]
+    
     # now plot
-    fig, ax = plt.subplots(1, 2, figsize=(10*cm_to_inch, 5*cm_to_inch))
-    
-    ax[0].imshow(current_img_RGB)    
-    ax[0].imshow(current_pred_lbl_transl, cmap=cmap_plantclasses, vmin=0, vmax=5, alpha=1.0*(current_pred_lbl_transl>0))
-    
-    ax[1].imshow(current_lbl, cmap=cmap_plantclasses, vmin=0, vmax=5)  
+    if current_lbl is None:
+        fig, ax = plt.subplots(1, 1, figsize=(10*img_shape_ratio*cm_to_inch, 10*cm_to_inch))
+        ax.imshow(current_img_RGB)    
+        ax.imshow(current_pred_lbl_transl, cmap=cmap_plantclasses, vmin=0, vmax=5, alpha=1.0*(current_pred_lbl_transl>0))
+    else: 
+        fig, ax = plt.subplots(1, 2, figsize=((5*img_shape_ratio+5)*cm_to_inch, 5*cm_to_inch))
+        ax[0].imshow(current_img_RGB)    
+        ax[0].imshow(current_pred_lbl_transl, cmap=cmap_plantclasses, vmin=0, vmax=5, alpha=1.0*(current_pred_lbl_transl>0))    
+        ax[1].imshow(current_lbl, cmap=cmap_plantclasses, vmin=0, vmax=5)  
     
     plt.tight_layout()
     plt.savefig(pltfolder + f'predictionoverlay_{whichone}_{idx:03d}.pdf', dpi=300)
@@ -428,15 +438,17 @@ plt.imshow(img_full); plt.show()
 img_full_norm = caa.image_autorescale(img_full, rescalelog=False, bg_percentile=10)
 
 # now feed to U-net
-img_full_torch = ToTensor()(img_full_norm).to('mps')
-X = img_full_torch[None, :, 400:1000, :]
+with torch.no_grad():
+    
+    img_full_torch = ToTensor()(img_full_norm).to('mps')
+    X = img_full_torch[None, :, :, :]
 
-# display the final image
-plt.imshow(X[0].cpu().permute(1,2,0).numpy()); plt.show()
+    # display the final image
+    plt.imshow(X[0].cpu().permute(1,2,0).numpy()); plt.show()
 
-
-logits = modelUNet(X) # "logits" refers to raw, unnormalized
-prd_full = logits.cpu().detach().numpy()
+    logits = modelUNet(X) # "logits" refers to raw, unnormalized
+    prd_full = logits.cpu().detach().numpy()
+    
 plt.imshow(prd_full[0].argmax(0), cmap=cmap_plantclasses, vmin=0, vmax=4); plt.show()
 
 
@@ -453,6 +465,12 @@ overlayplot(current_img_RGB, current_prd, current_lbl, pltfolder)
 
 # import importlib; importlib.reload(crw)
 
+from PIL import Image
+
+
+import prepostprocessing_input.preprocessing_input as cpp
+
+
 # First need to do pre-processing
 DATA_PATH = '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/DATA/'
 
@@ -467,14 +485,66 @@ METADATA_FILEPATH_INPUT = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-leng
 # load that file
 df_metadata_input = pd.read_excel(METADATA_FILEPATH_INPUT)
 
-# now read one image file
-img_test = crw.loadimgfile_metadata(df_metadata_input, 0)
 
-plt.imshow(img_test); plt.show()
+def read_input_img_file(df_metadata_input, file_idx):
+    
+    # now read one image file
+    img_test = crw.loadimgfile_metadata(df_metadata_input, file_idx)
+    # auto crop
+    img_test_crop, _ = cpp.preprocess_getbbox_insideplate(img_test)
+    # normalize
+    img_test_crop_norm = caa.image_autorescale(img_test_crop, rescalelog=False, bg_percentile=10)
+
+    # plt.imshow(img_test_crop_norm); plt.show()
+    
+    return img_test_crop_norm
 
 
+def get_ML_prediction(img_input, themodel, showplot=False):
+    # img_input = img_test_crop_norm
+            
+    # Feed the input image to the U-net
+    with torch.no_grad():
+        
+        img_torch = ToTensor()(img_input).to('mps')
+        X = img_torch[None, :, :, :]
+            # plt.imshow(X[0].cpu().permute(1,2,0).numpy()); plt.show()
+
+        logits = themodel(X) # "logits" refers to raw, unnormalized
+        prd_full     = logits.cpu().detach().numpy()
+        prd_labels  = prd_full[0].argmax(0)
+
+    if showplot:        
+        plt.imshow(prd_labels, cmap=cmap_plantclasses, vmin=0, vmax=4); plt.show()
+    
+    return prd_labels
 
 
+img_test_crop_norm = read_input_img_file(df_metadata_input, file_idx=0)
+img_pred_lbls = get_ML_prediction(img_test_crop_norm, themodel=modelUNet, showplot=False)
+
+# now plot as above
+overlayplot(img_test_crop_norm, img_pred_lbls, None,
+            whichone='fullimage_test', pltfolder=pltfolder)
+
+
+# now do the 100 random files and store in subfolder of pltfolder
+os.makedirs(pltfolder + 'fullimages_predictions/', exist_ok=True)
+hundred_file_idxs = np.random.choice(df_metadata_input.index, size=100, replace=False)
+for file_idx in hundred_file_idxs:
+    
+    print(f'Processing file idx {file_idx} ..')
+    img_test_crop_norm = read_input_img_file(df_metadata_input, file_idx=file_idx)
+    img_pred_lbls = get_ML_prediction(img_test_crop_norm, themodel=modelUNet, showplot=False)
+    
+    # now plot as above
+    print('Plotting prediction')
+    overlayplot(img_test_crop_norm, img_pred_lbls, None,
+                whichone=f'fullimage_idx{file_idx:03d}', pltfolder=pltfolder + 'fullimages_predictions/')
+    
+    # also save the predicted mask to a numpy file
+    print('Saving prediction..')
+    np.save(pltfolder + 'fullimages_predictions/' + f'predictedmask_idx{file_idx:03d}.npy', img_pred_lbls)
 
 
 # %%
