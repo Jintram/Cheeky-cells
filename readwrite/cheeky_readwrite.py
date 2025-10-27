@@ -21,6 +21,7 @@ import pandas as pd
 # 
 
 def gen_metadatafile(basedirectory, subdirs, outputdirectory, 
+                     suffix='',
                      file_formats=['.tif','.nd2','.jpg'], segchannel = 'all', invert_image='no', 
                      default_columns = ['dataset', 'train_or_test', 'comments']):
                                         # 'basedir', 'subdir' will always be added    
@@ -75,7 +76,7 @@ def gen_metadatafile(basedirectory, subdirs, outputdirectory,
         df_metadata[col] = nr_of_rows * ['']
         
     # now save the metadata file
-    outputfilename = os.path.join(outputdirectory, 'metadata_imagefiles_autogen.xlsx')
+    outputfilename = os.path.join(outputdirectory, 'metadata_imagefiles_autogen'+suffix+'.xlsx')
     df_metadata.to_excel(outputfilename, index=False)
     
     return None

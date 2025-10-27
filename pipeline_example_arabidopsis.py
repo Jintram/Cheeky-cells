@@ -33,6 +33,7 @@ import matplotlib.pyplot as plt
 import torch
 import numpy as np
 import time
+import glob
 
 from torch.utils.data import DataLoader
 from torchvision.transforms import ToTensor, Lambda
@@ -272,10 +273,11 @@ def custom_lr_schedule(epoch, step_len=50):
         epoch = step_len*3-1
     return lr_scalefactor[epoch]    
 # define scheduler
-scheduler = LambdaLR(optimizer, lr_lambda=lambda epoch: custom_lr_schedule(epoch, step_len=2))
+#scheduler = LambdaLR(optimizer, lr_lambda=lambda epoch: custom_lr_schedule(epoch, step_len=2))
+scheduler = LambdaLR(optimizer, lr_lambda=lambda epoch: custom_lr_schedule(epoch, step_len=8))
 
 # training loop
-epochs = 6 # 150 # 30
+epochs = 24 # 150 # 30
 list_loss_tracker = []
 list_correct = []
 start_time_overall = time.time()
@@ -308,6 +310,10 @@ print("Done!")
 # save the model
 current_time_formatted = time.strftime("%Y%m%d_%H%M")
 torch.save(modelUNet.state_dict(), modelfolder+'modelUNet'+current_time_formatted+'.pth')
+
+# load the model
+if False:
+    modelUNet.load_state_dict(torch.load(modelfolder+'modelUNet20251026_1027.pth'))
 
 # %% ################################################################################
 # Now some plotting of the results
@@ -344,7 +350,7 @@ custom_colors_plantclasses = \
 from matplotlib.colors import ListedColormap
 cmap_plantclasses = ListedColormap(custom_colors_plantclasses)
 
-def sidebysideplot(current_img_RGB, current_prd, current_lbl, pltfolder):
+def sidebysideplot(current_img_RGB, current_prd, current_lbl, whichone, pltfolder):
 
     # make plot
     fig, ax = plt.subplots(1, 3, figsize=(15*cm_to_inch, 5*cm_to_inch))
@@ -362,7 +368,7 @@ def sidebysideplot(current_img_RGB, current_prd, current_lbl, pltfolder):
     plt.tight_layout()
     plt.savefig(pltfolder + f'prediction_{whichone}_{idx:03d}.pdf', dpi=300)
 
-def overlayplot(current_img_RGB, current_prd, current_lbl, pltfolder):
+def overlayplot(current_img_RGB, current_prd, current_lbl, whichone, pltfolder):
     
     current_pred_lbl = current_prd[0].argmax(0)
     
@@ -405,21 +411,70 @@ for whichone in ['test', 'train']:
         accuracy = np.sum(correct_pixels) / correct_pixels.size
         print(f'Accuracy for {whichone} image {idx}: {accuracy*100:.2f} %')
         
-        sidebysideplot(current_img_RGB, current_prd, current_lbl, pltfolder)
-        overlayplot(current_img_RGB, current_prd, current_lbl, pltfolder)
+        sidebysideplot(current_img_RGB, current_prd, current_lbl, whichone, pltfolder)
+        overlayplot(current_img_RGB, current_prd, current_lbl, whichone, pltfolder)
 
 
 # %% ################################################################################
+# Now try a full sized data image
+
+image_path_test2 = '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/DATA/20250721batch1/20250721_OY_09.jpg'
+
+from PIL import Image
+img_full = np.array(Image.open(image_path_test2).convert('RGB'))
+plt.imshow(img_full); plt.show()
+
+# now normalize the image
+img_full_norm = caa.image_autorescale(img_full, rescalelog=False, bg_percentile=10)
+
+# now feed to U-net
+img_full_torch = ToTensor()(img_full_norm).to('mps')
+X = img_full_torch[None, :, 400:1000, :]
+
+# display the final image
+plt.imshow(X[0].cpu().permute(1,2,0).numpy()); plt.show()
+
+
+logits = modelUNet(X) # "logits" refers to raw, unnormalized
+prd_full = logits.cpu().detach().numpy()
+plt.imshow(prd_full[0].argmax(0), cmap=cmap_plantclasses, vmin=0, vmax=4); plt.show()
+
+
+# now plot as above
+current_img = X[0].cpu().numpy()
+current_img_RGB = current_img.transpose(1,2,0)
+current_prd = prd_full
+current_lbl='N_A'
+overlayplot(current_img_RGB, current_prd, current_lbl, pltfolder)
+
+
+# %% ################################################################################
+# Now loop over all data;
+
+# import importlib; importlib.reload(crw)
+
+# First need to do pre-processing
+DATA_PATH = '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/DATA/'
+
+# Now construct a dataframe with all image files (either jpg or tif) in this directory, 
+# also listing their subfolder and filename in a column
+all_subfolders = glob.glob(pathname='*',  root_dir=DATA_PATH)
+crw.gen_metadatafile(DATA_PATH, subdirs=all_subfolders, outputdirectory=outputdirectory, suffix='_inputdata',
+                     default_columns = ['comments'])
+
 # 
+METADATA_FILEPATH_INPUT = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/metadata_imagefiles_manual_inputdata20251027.xlsx'
+# load that file
+df_metadata_input = pd.read_excel(METADATA_FILEPATH_INPUT)
+
+# now read one image file
+img_test = crw.loadimgfile_metadata(df_metadata_input, 0)
+
+plt.imshow(img_test); plt.show()
 
 
 
 
 
 
-
-
-
-
-
-
+# %%
