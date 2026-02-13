@@ -69,6 +69,7 @@ metadata_filepath            = outputdirectory + metadata_customized_filename
 df_metadata = pd.read_excel(metadata_filepath)
 
 # %% ################################################################################
+# Generate ground truth pictures
 
 # import importlib; importlib.reload(caa)
 
@@ -187,6 +188,9 @@ print('shape',logits.shape)
     # seems to work OK :)
     
 plt.imshow(logits[0,1,:,:].detach().cpu(), cmap='gray')
+
+# When you already have a trained model, use the code at the end of
+# the section below to load it.
 
 # %% ################################################################################
 
@@ -367,6 +371,7 @@ def sidebysideplot(current_img_RGB, current_prd, current_lbl, whichone, pltfolde
     # save it
     plt.tight_layout()
     plt.savefig(pltfolder + f'prediction_{whichone}_{idx:03d}.pdf', dpi=300)
+    plt.close()
 
 def overlayplot(current_img_RGB, current_prd, current_lbl, whichone, pltfolder):
     # current_img_RGB=img_test_crop_norm, current_prd=img_pred_lbls, current_lbl=np.zeros_like(img_pred_lbls); whichone='fullimage_test'
@@ -396,6 +401,7 @@ def overlayplot(current_img_RGB, current_prd, current_lbl, whichone, pltfolder):
     
     plt.tight_layout()
     plt.savefig(pltfolder + f'predictionoverlay_{whichone}_{idx:03d}.pdf', dpi=300)
+    plt.close()
     
 
 # now once again apply the model and show the result

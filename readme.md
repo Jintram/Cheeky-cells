@@ -9,6 +9,20 @@ recognize objects in an image.
 It has been tested and optimized for detection of cells, but can also be used for other 
 purposes.
 
+
+## Setup
+
+I started a .venv folder using `python3 -m venv` and `python3 -m pip`, but 
+I didn't finish this. Thus, the `pyproject.toml` file can be ignored.
+
+Instead, I've used the Conda environment:
+```bash
+conda activate 2025_pytorch2
+```
+
+
+
+
 ## Workflow description
 
 ### Annotating images
