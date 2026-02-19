@@ -1,3 +1,9 @@
+
+# %% ################################################################################
+# Originally written by Martijn Wehrens,
+# refactored by ChatGPT Codex 5.3 to streamline preliminary code.
+
+
 # %% ################################################################################
 # Arabidopsis ML pipeline orchestrator
 #

@@ -35,7 +35,7 @@ class Phase3Config:
     nr_classes: int = 5
 
     # Required checkpoint path for inference
-    model_checkpoint_to_load: str | None = None
+    model_checkpoint_to_load: str = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/models/modelUNet20251026_1027.pth'
 
     # Input data metadata settings
     data_path_input: str = '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/DATA/'
@@ -270,6 +270,7 @@ def apply_model_to_random_input_batch(df_metadata_input: pd.DataFrame, config: P
 
 
 def run_phase3_pipeline(config: Phase3Config) -> None:
+    
     # Prepare path and outputs
     add_script_dir_to_path(config.script_dir)
     output_paths = get_output_paths(config)
