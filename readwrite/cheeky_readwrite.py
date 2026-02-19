@@ -17,6 +17,8 @@ import glob
 
 import pandas as pd
 
+from skimage.exposure import rescale_intensity
+
 # %% ################################################################################
 # 
 
@@ -70,7 +72,7 @@ def gen_metadatafile(basedirectory, subdirs, outputdirectory,
                        'subdir': allfiles_subdirs,
                        'filename': allfiles,
                        'segmentation_channel': nr_of_rows * [segchannel],
-                        'invert_image': nr_of_rows * [invert_image]})
+                       'invert_image': nr_of_rows * [invert_image]})
     # Now add other columns in default list
     for col in default_columns:
         df_metadata[col] = nr_of_rows * ['']
@@ -80,7 +82,50 @@ def gen_metadatafile(basedirectory, subdirs, outputdirectory,
     df_metadata.to_excel(outputfilename, index=False)
     
     return None
+
+
+def gen_metadatafile_segfiles(basedirectory, outputdirectory, 
+                     file_formats=['.tif','.nd2','.jpg','.png'], 
+                     segchannel = 'all', invert_image='no'):
+    '''
+    Given a folder, generate an excel file with column 'filename' with all image files
+    from a given directory and its subdirectories, and add also default columns
+    that the user can fill in further.
     
+    Invert_image can be 'yes' or 'no', to indicate whether the image should be inverted (negative)
+    '''
+    
+    # make output directory
+    os.makedirs(outputdirectory, exist_ok=True)
+    
+    # find all image files
+    all_paths = glob.glob(os.path.join(basedirectory, '**', f'*[{"|".join(file_formats)}]'))
+    
+    # Now get the subdirs and filenames
+    all_subdirs = [
+        os.path.relpath(os.path.dirname(current_path), basedirectory) 
+            for current_path in all_paths
+        ]
+    all_filenames = [
+        os.path.basename(current_path) 
+            for current_path in all_paths
+        ]
+                        
+    # Now convert this to a table, with one row per file
+    nr_of_rows = len(all_filenames) 
+    df_metadata = pd.DataFrame({'basedir': nr_of_rows * [basedirectory],
+                       'subdir': all_subdirs,
+                       'filename': all_filenames,
+                       'segmentation_channel': nr_of_rows * [segchannel],
+                       'invert_image': nr_of_rows * [invert_image]})
+                        # os.path.join(basedirectory, all_subdirs[0], all_filenames[0])
+        
+    # now save the metadata file
+    metadata_toseg_filepath = os.path.join(outputdirectory, 'metadata_files_toseg_autogen.xlsx')
+    df_metadata.to_excel(metadata_toseg_filepath, index=False)
+    
+    return metadata_toseg_filepath
+
     
 def get_fileinfo_metadata(df_metadata, file_idx): 
     '''
@@ -156,6 +201,43 @@ def loadimgfile_metadata(df_metadata, file_idx): # , metadatapath=None
     else:
         return img[segchannel]
     
+
+def subtractbaseline(anarray, bg_percentile=.2):
+    
+    thresholdlow = np.percentile(anarray, bg_percentile)
+    anarray[anarray < thresholdlow] = thresholdlow
+    anarray = anarray - thresholdlow
+    
+    return anarray
+
+def image_autorescale(input_img, rescalelog=True, bg_percentile=.2):
+    # input_img=np.zeros([20,20])
+    # input_img=img_toseg
+    
+    # plt.hist(input_img.ravel())
+    # plt.hist(image_autorescale(input_img).ravel())
+    
+    # make the image float32 first
+    input_img = input_img.astype(np.float32)
+    
+    # first add a 3rd dimension (corresponding to channels) if there isn't any
+    if len(input_img.shape)==2:
+        input_img = input_img[:,:,np.newaxis]
+    
+    # now go over each channel and perform rescaling
+    new_img = np.zeros_like(input_img)
+    for ch_idx in range(input_img.shape[2]): # ch_idx = 0 
+        if rescalelog:  
+            new_img[:,:,ch_idx] = np.log(.1+subtractbaseline(input_img[:,:,ch_idx], bg_percentile=bg_percentile))
+        else:
+            new_img[:,:,ch_idx] = subtractbaseline(input_img[:,:,ch_idx], bg_percentile=bg_percentile)
+        
+    # rescale to range 0-255
+    new_img = rescale_intensity(new_img, 'image', (0, 255))
+    new_img = new_img.astype(np.uint8)
+        # plt.imshow(new_img); plt.show()
+    
+    return new_img    
     
 def addsuffixtoonefilename(filename, suffix, newextension='.npy', extensionlist=['.npy', '.tif', '.jpg', '.png', '.nd2']):
     '''

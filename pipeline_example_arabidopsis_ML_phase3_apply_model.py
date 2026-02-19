@@ -89,7 +89,7 @@ def import_custom_modules_phase3():
     # Import only modules needed for phase 3
     import readwrite.cheeky_readwrite as crw
     import annotating_data.annotation_aided as caa
-    import prepostprocessing_input.preprocessing_input as cpp
+    import prepostprocessing_input.ara_roots.preprocessing as cpp
     from machine_learning.model import unet_model as cunet
 
     return crw, caa, cpp, cunet

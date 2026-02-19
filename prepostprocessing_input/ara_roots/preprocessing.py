@@ -46,6 +46,7 @@ def preprocess_getbbox_insideplate(img_in_raw, margin_left = 100, margin_right =
     
     return img_cropped, rect
 
+
     # # now since we know there's no agar at the edges 
     # # and there is agar at the center, we can take those 
     # # values as references..    

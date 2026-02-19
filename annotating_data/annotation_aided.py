@@ -14,7 +14,6 @@ from scipy.ndimage import maximum_filter
 from skimage.filters import threshold_triangle, threshold_otsu, threshold_li
 
 from skimage.morphology import remove_small_objects, label
-from skimage.exposure import rescale_intensity
 
 import time
 
@@ -46,43 +45,6 @@ cm_to_inch = 1/2.54
 
 # %% #################################################################################
 
-def subtractbaseline(anarray, bg_percentile=.2):
-    
-    thresholdlow = np.percentile(anarray, bg_percentile)
-    anarray[anarray < thresholdlow] = thresholdlow
-    anarray = anarray - thresholdlow
-    
-    return anarray
-
-
-def image_autorescale(input_img, rescalelog=True, bg_percentile=.2):
-    # input_img=np.zeros([20,20])
-    # input_img=img_toseg
-    
-    # plt.hist(input_img.ravel())
-    # plt.hist(image_autorescale(input_img).ravel())
-    
-    # make the image float32 first
-    input_img = input_img.astype(np.float32)
-    
-    # first add a 3rd dimension (corresponding to channels) if there isn't any
-    if len(input_img.shape)==2:
-        input_img = input_img[:,:,np.newaxis]
-    
-    # now go over each channel and perform rescaling
-    new_img = np.zeros_like(input_img)
-    for ch_idx in range(input_img.shape[2]): # ch_idx = 0 
-        if rescalelog:  
-            new_img[:,:,ch_idx] = np.log(.1+subtractbaseline(input_img[:,:,ch_idx], bg_percentile=bg_percentile))
-        else:
-            new_img[:,:,ch_idx] = subtractbaseline(input_img[:,:,ch_idx], bg_percentile=bg_percentile)
-        
-    # rescale to range 0-255
-    new_img = rescale_intensity(new_img, 'image', (0, 255))
-    new_img = new_img.astype(np.uint8)
-        # plt.imshow(new_img); plt.show()
-    
-    return new_img
        
 
 def image_greyscale(img):
@@ -226,7 +188,7 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=
     # generate a new segmentation of the tile based on otsu method
     #current_tile_log = subtractbaseline(np.log(tiles[idx_tile_sel] + .1))
     # current_tile_rescaled = image_autorescale(tiles[idx_tile_sel])
-    current_tile_rescaled     = image_autorescale(tiles[idx_tile_sel], rescalelog=rescalelog, bg_percentile=bg_percentile)
+    current_tile_rescaled     = crw.image_autorescale(tiles[idx_tile_sel], rescalelog=rescalelog, bg_percentile=bg_percentile)
         # plt.imshow(tiles[idx_tile_sel]);plt.show()
         # plt.imshow(current_tile_rescaled); plt.show()
         

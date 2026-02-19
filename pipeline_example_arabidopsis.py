@@ -474,7 +474,7 @@ overlayplot(current_img_RGB, current_prd, current_lbl, pltfolder)
 from PIL import Image
 
 
-import prepostprocessing_input.preprocessing_input as cpp
+import prepostprocessing_input.ara_roots.preprocessing as cpp
 
 
 # First need to do pre-processing
