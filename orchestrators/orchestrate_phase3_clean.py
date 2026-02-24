@@ -106,26 +106,29 @@ def get_input_img_file(config: Phase3Config,
                         df_metadata: pd.DataFrame, 
                         file_idx: int):
     
+    # Pre-processing info
     prepr_info = None
     
     # Read image from metadata
-    img_toseg = crw.loadimgfile_metadata(df_metadata, file_idx)
+    img_toseg = crw.loadimgfile_metadata(df_metadata, file_idx, show_name=True)
         # plt.imshow(img_toseg)
 
     # Dataset-specific image preprocessor
     if config.fn_specific_preprocessing is not None:
-        img_toseg_crop, prepr_info = config.fn_specific_preprocessing(img_toseg)
-        # plt.imshow(img_toseg_crop)
+        img_toseg_prepr, prepr_info = config.fn_specific_preprocessing(img_toseg)
+    else:
+        img_toseg_prepr = img_toseg
+        # plt.imshow(img_toseg_prepr)
 
     # Normalize intensity
     # bg_percentile = 10 is value used for arabidopsis roots
-    img_toseg_crop_norm = crw.image_autorescale(
-        img_toseg_crop, 
+    img_toseg_prepr_norm = crw.image_autorescale(
+        img_toseg_prepr, 
         rescalelog=False, 
         bg_percentile=config.bg_percentile)
-        # plt.imshow(img_toseg_crop_norm)
+        # plt.imshow(img_toseg_prepr_norm)
     
-    return img_toseg_crop_norm, prepr_info
+    return img_toseg_prepr_norm, prepr_info
 
 
 def initialize_unet_model_for_inference(config: Phase3Config):
@@ -178,7 +181,7 @@ def segment_all_files(config: Phase3Config,
     Fluctuations in memory use can occur due to input images dimensions being 
     different.
     """
-    
+        
     # First open the metadata file
     df_metadata_input = load_input_metadata(config)
     
@@ -192,18 +195,22 @@ def segment_all_files(config: Phase3Config,
     print("Creating directory structure")
     for subdir in df_metadata_input['subdir'].unique():
         os.makedirs(os.path.join(config.outputdirectory, "segfiles/", subdir), exist_ok=True)
+        os.makedirs(os.path.join(config.outputdirectory, "plots/", subdir), exist_ok=True)
     
     # Determine # files to process    
     nr_files = len(df_metadata_input)
     if max_files_to_process is None:
         max_files_to_process = nr_files
+    
+    print(f"Starting to work on {np.min([nr_files,max_files_to_process])} files..")
                
     # Now go through the dataframe, and produce predictions
     time_taken = []; files_actually_processed = 0
     for file_idx in range(nr_files):
         # file_idx = 0
+        # file_idx=454
         
-        print(f'Processing file idx {file_idx+1}/{nr_files} ..')
+        print(f'Processing file {file_idx+1}/{nr_files} ..')
         
         # Record start time
         start_time = time.time()
@@ -227,16 +234,16 @@ def segment_all_files(config: Phase3Config,
         
         
         # Get image to seg
-        img_toseg_crop_norm, prepr_info = get_input_img_file(
+        img_toseg_prepr_norm, prepr_info = get_input_img_file(
             config = config,
             df_metadata = df_metadata_input,
             file_idx=file_idx
         )
-            # plt.imshow(img_toseg_crop_norm)
+            # plt.imshow(img_toseg_prepr_norm)
 
         # Get the prediction
         img_pred_lbls = get_ml_prediction(
-            img_toseg_crop_norm,
+            img_toseg_prepr_norm,
             the_model=model_unet,
             target_device=config.target_device,
             showplot=False,
@@ -250,7 +257,7 @@ def segment_all_files(config: Phase3Config,
             
             print("Now plotting")
             fig, ax = config.fn_plotting(
-                img_toseg_crop_norm,
+                img_toseg_prepr_norm,
                 img_pred_lbls,
                 cmap_custom=config.cmap_custom,
             )
@@ -275,8 +282,18 @@ def segment_all_files(config: Phase3Config,
                             prepr_info=prepr_info)
         print('Saving done..')
         
+        # Reset Torch cache (every 10 loops) to prevent memory build up
+        if files_actually_processed % 10 == 0: 
+            if config.target_device == "cuda":
+                torch.cuda.empty_cache()
+            elif config.target_device == "mps":
+                torch.mps.empty_cache()   
+            print("** Cache emptied **")
+                
         files_actually_processed += 1
     
     print("Done")
     
     return None
+
+# %%

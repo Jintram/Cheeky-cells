@@ -56,10 +56,24 @@ config3_ara_root = o3.collect_filelist(config3_ara_root)
     
     
 # now segment them
-o3.segment_all_files(config3_ara_root, 
-                     max_files_to_process=1, # for test-run purposes
-                     overwrite_files=True)
+o3.segment_all_files(config3_ara_root,
+                     max_files_to_process=10 # for test-run purposes
+                     # overwrite_files=True
+                     )
 
 
 
 # %%
+
+# REMOVE THIS CODE
+
+# import os
+# for file_idx in range(452, 1000):
+#     print(f"Processing file idx {file_idx} ..")
+#     filepath_segfile = \
+#         os.path.join(config.outputdirectory, "segfiles/", 
+#                         df_metadata_input.loc[file_idx, 'subdir'], 
+#                         f'segfile_idx{file_idx:03d}.npz')
+#     # remove filepath_segfile if it's there
+#     if os.path.exists(filepath_segfile):
+#         os.remove(filepath_segfile)

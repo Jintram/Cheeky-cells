@@ -12,11 +12,42 @@ from skimage.measure import label, regionprops
 
 # now do some pre-processing
 
+# %% Functions
+
+def bbox_from_mask_light(mask: np.ndarray):
+    """
+    Get bbox coordinates surrounding all non-zero pixels in a 2D mask.
+    """
+    # mask = mask_cleaned
+    
+    # Check if mask is 2D
+    if mask.ndim != 2:
+        raise ValueError("Input mask must be 2D")
+    
+    # Project the 2D mask on X or Y (for efficiency)
+    rows_any = mask.any(axis=1)
+    cols_any = mask.any(axis=0)
+
+    if not rows_any.any():
+        return None
+
+    # Recover coordinates of all non-zero pixels in the projections
+    r_idx = np.flatnonzero(rows_any) # flat to drop empty dim
+    c_idx = np.flatnonzero(cols_any)
+
+    # Recover max and min for both dimensions to get the bbox
+    r0, r1 = r_idx[0], r_idx[-1] + 1
+    c0, c1 = c_idx[0], c_idx[-1] + 1
+    
+    return r0, c0, r1, c1
+
+# %%
 
 def preprocess_getbbox_insideplate(img_in_raw, margin_left = 100, margin_right = 100, 
-                                         margin_top = 250, margin_bottom = 250):
-    # img_in_raw = img_test    
-    # margin_left = 100; margin_right = 100; margin_top = 250; margin_bottom = 250
+                                         margin_top = 250, margin_bottom = 250,
+                                         min_expected_area = 500000):
+    # img_in_raw = img_toseg    
+    # margin_left = 100; margin_right = 100; margin_top = 250; margin_bottom = 250; min_expected_area = 500000
     
     # convert to greyscale
     img_in_gray = rgb2gray(img_in_raw)
@@ -34,13 +65,19 @@ def preprocess_getbbox_insideplate(img_in_raw, margin_left = 100, margin_right =
     mask_cleaned = remove_small_objects(mask_filled, min_size=10000)
         # plt.imshow(mask_cleaned); plt.show()
     
-    # now get bounding box of largest object    
-    regions = regionprops(label(mask_cleaned))
-    largest_region_idx = np.argmax(np.array([r.area for r in regions]))
-    r1, c1, r2, c2 = regions[largest_region_idx].bbox
+    # now get bounding box around the mask
+    r0, c0, r1, c1 = bbox_from_mask_light(mask_cleaned)
+    # regions = regionprops(label(mask_cleaned))
+    # largest_region_idx = np.argmax(np.array([r.area for r in regions]))
+    # r1, c1, r2, c2 = regions[largest_region_idx].bbox
+    
+    # If bbox covering minimum area isn't identified, return full image
+    if (r1-r0) * (c1-c0) < min_expected_area:
+        print("No large enough region detected, returning full image")
+        return img_in_raw, (0, img_in_raw.shape[0], 0, img_in_raw.shape[1])
     
     # now create the cropped image
-    rect = ((r1+margin_bottom), (r2-margin_top), (c1+margin_left), (c2-margin_right))
+    rect = (r0+margin_top, r1-margin_bottom, c0+margin_left, c1-margin_right)
     img_cropped = img_in_raw[rect[0]:rect[1], rect[2]:rect[3]]
     # plt.imshow(img_cropped); plt.show()
     

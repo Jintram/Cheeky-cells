@@ -158,7 +158,7 @@ def invertimage(img):
     return img_inverted
     
     
-def loadimgfile_metadata(df_metadata, file_idx): # , metadatapath=None
+def loadimgfile_metadata(df_metadata, file_idx, show_name=False): # , metadatapath=None
     '''
     Loads one image with the to be segmented data, based
     on the metadata file. Specify which image by specifying an 
@@ -181,6 +181,9 @@ def loadimgfile_metadata(df_metadata, file_idx): # , metadatapath=None
     
     # Get information for file to load
     basedir, subdir, filename, segchannel, do_invert = get_fileinfo_metadata(df_metadata, file_idx)
+    
+    if show_name:
+        print(f"Loading file {filename}..")
     
     # Load the file
     fullpath = os.path.join(basedir, subdir, filename)    
