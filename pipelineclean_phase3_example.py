@@ -29,7 +29,7 @@ import plotting.plotting as pp
 SCRIPT_DIR = '/Users/m.wehrens/Documents/git_repos/_UVA/_Projects-MolCyto/2025_Cheeky-cells/'
 
 # dataset spcecific config
-OUTPUT_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SEGMENTATION/202602/'
+OUTPUT_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/202602/SEG/'
 CURRENT_MODEL = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/models/modelUNet20251026_1027.pth'
 DATA_DIR = '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/DATA/'
 

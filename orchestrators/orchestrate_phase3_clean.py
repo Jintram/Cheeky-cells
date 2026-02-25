@@ -220,7 +220,7 @@ def segment_all_files(config: Phase3Config,
         filepath_segfile = \
             os.path.join(config.outputdirectory, "segfiles/", 
                          df_metadata_input.loc[file_idx, 'subdir'], 
-                         current_basefilename, "_seg.npz")
+                         current_basefilename + "_seg.npz")
 
         # Skip if file was already segged (unless preferred otherwise)
         if not overwrite_files:            
@@ -267,7 +267,7 @@ def segment_all_files(config: Phase3Config,
             fig.savefig(fname = os.path.join(
                                     config.outputdirectory, "plots/", 
                                     df_metadata_input.loc[file_idx, 'subdir'], 
-                                    current_basefilename + "_plot.pdf"
+                                    current_basefilename + "_plot.pdf"), 
                         dpi=300, bbox_inches='tight')
             plt.close(fig)
         
