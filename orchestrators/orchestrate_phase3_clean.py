@@ -216,10 +216,11 @@ def segment_all_files(config: Phase3Config,
         start_time = time.time()
         
         # determine where to store the segfile later
+        current_basefilename = os.path.splitext(df_metadata_input.loc[file_idx, "filename"])[0]
         filepath_segfile = \
             os.path.join(config.outputdirectory, "segfiles/", 
                          df_metadata_input.loc[file_idx, 'subdir'], 
-                         f'segfile_idx{file_idx:03d}.npz')
+                         current_basefilename, "_seg.npz")
 
         # Skip if file was already segged (unless preferred otherwise)
         if not overwrite_files:            
@@ -266,7 +267,7 @@ def segment_all_files(config: Phase3Config,
             fig.savefig(fname = os.path.join(
                                     config.outputdirectory, "plots/", 
                                     df_metadata_input.loc[file_idx, 'subdir'], 
-                                    f'{os.path.splitext(df_metadata_input.loc[file_idx, "filename"])[0]}_plot.pdf'),
+                                    current_basefilename + "_plot.pdf"
                         dpi=300, bbox_inches='tight')
             plt.close(fig)
         
@@ -282,13 +283,12 @@ def segment_all_files(config: Phase3Config,
                             prepr_info=prepr_info)
         print('Saving done..')
         
-        # Reset Torch cache (every 10 loops) to prevent memory build up
-        if files_actually_processed % 10 == 0: 
-            if config.target_device == "cuda":
-                torch.cuda.empty_cache()
-            elif config.target_device == "mps":
-                torch.mps.empty_cache()   
-            print("** Cache emptied **")
+        # Reset Torch cache to prevent memory build up
+        # on my machine, doing this every loop increases speed a load
+        if config.target_device == "cuda":
+            torch.cuda.empty_cache()
+        elif config.target_device == "mps":
+            torch.mps.empty_cache()   
                 
         files_actually_processed += 1
     
