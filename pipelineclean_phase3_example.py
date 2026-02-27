@@ -45,7 +45,7 @@ config3_ara_root = o3.Phase3Config(
     model_checkpoint_to_load = CURRENT_MODEL,
     bg_percentile = 10,
     data_path_input = DATA_DIR,
-    fn_specific_preprocessing = pp_ara.preprocess_getbbox_insideplate,
+    fn_specific_preprocessing = pp_ara.preprocess_getbbox_insideplate2,
     fn_plotting = pp.overlayplot,
     cmap_custom = plt_ara.cmap_custom_plantclasses
 )    
@@ -57,13 +57,21 @@ config3_ara_root = o3.collect_filelist(config3_ara_root)
     
 # now segment them
 o3.segment_all_files(config3_ara_root,
-                     # max_files_to_process=10 # for test-run purposes
-                     overwrite_files=True
+                     # max_files_to_process=10, # for test-run purposes
+                     # overwrite_files=True
                      )
 
 
-
 # %%
+# DEBUGGING
+
+if False:
+    
+    # Given a filename (e.g. 20250620_OY_06), find index in the df_metadata_input
+    np.where(df_metadata_input.loc[:,'filename'].str.contains('20250617_OY_17'))
+
+
+# %% 
 
 # REMOVE THIS CODE
 
