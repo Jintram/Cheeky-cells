@@ -95,7 +95,8 @@ def basicseg2(img):
 
 def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=basicseg1,
                                showedgepic=False, tile_selection_by='maxvar', showplots=True,
-                               folder_devplots=None, rescalelog=True, bg_percentile=.2):
+                               folder_devplots=None, rescalelog=True, bg_percentile=.2,
+                               rescalegrey=True):
     '''    
     TO DO: This function is still slightly messy!
         Perhaps make it more modular?
@@ -193,10 +194,15 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=
         # plt.imshow(current_tile_rescaled); plt.show()
         
     # If no segmentation exists, just try something basic
-    if img_annot is None:
+    if img_annot is None:        
         current_tile_rescaledgrey = image_greyscale(current_tile_rescaled)
             # plt.imshow(current_tile_rescaledgrey); plt.show()
-        img_segmaskauto = segfn(current_tile_rescaledgrey)
+            
+        # apply custom seg function
+        if rescalegrey:
+            img_segmaskauto = segfn(current_tile_rescaledgrey)
+        else:
+            img_segmaskauto = segfn(tiles[idx_tile_sel])
         
         # remove small objects 
         img_seg0_tile = remove_small_objects(img_segmaskauto, min_size=20**2)
@@ -239,7 +245,8 @@ def annotate_pictures_aided(df_metadata, file_idx,
                             segfn = basicseg1,
                             intitial_segfolder = None, TILE_SIZE=2000,
                             tile_selection_by = 'maxvar', 
-                            ignore_saved_file=False, showplots=False, rescalelog=True, bg_percentile=.2, showrawimg=False):
+                            ignore_saved_file=False, showplots=False, rescalelog=True, bg_percentile=.2, showrawimg=False,
+                            rescalegrey=True, mylabelcolormap=None):
     '''
     
     '''
@@ -276,9 +283,13 @@ def annotate_pictures_aided(df_metadata, file_idx,
         
     # Now get a single tile for the annotation
     img_toseg_tile, img_seg0_tile, img_toseg_tile_edges, img_toseg_tile_rescaled = \
-        annothelp_tile_and_segment(img_toseg, img_annot=img_annot, TILE_SIZE=TILE_SIZE, segfn=segfn,
-                                showedgepic=False, tile_selection_by=tile_selection_by, showplots=showplots,
-                                folder_devplots=None, rescalelog=rescalelog, bg_percentile=bg_percentile)
+        annothelp_tile_and_segment(
+            img_toseg, 
+            img_annot=img_annot, TILE_SIZE=TILE_SIZE, segfn=segfn,
+            showedgepic=False, 
+            tile_selection_by=tile_selection_by, showplots=showplots,
+            folder_devplots=None, rescalelog=rescalelog, bg_percentile=bg_percentile,
+            rescalegrey=rescalegrey)
         # plt.imshow(img_toseg_tile); plt.show()
         # plt.imshow(img_seg0_tile); plt.show()
         # plt.imshow(img_toseg_tile_rescaled); plt.show()
@@ -305,9 +316,11 @@ def annotate_pictures_aided(df_metadata, file_idx,
         viewer.add_image(img_toseg_tile)
     else:
         viewer.add_image(img_toseg_tile_rescaled)
-
+    
     # add a label layer                           
-    seg_layer = viewer.add_labels(name='segmentation', data=img_seg0_tile)
+    seg_layer = viewer.add_labels(name='segmentation', 
+                                  data=img_seg0_tile,
+                                  colormap=mylabelcolormap)
 
     # define a callback that sets a flag and closes the viewer
     def _on_quit(event=None):
@@ -341,7 +354,7 @@ def annotate_pictures_aided(df_metadata, file_idx,
     
     return quitloop_flag
 
-
+# %%
 
 # Now a function that loops over the images that are available in the metadata and calls
 # annotate_pictures_aided()
@@ -349,7 +362,8 @@ def annotate_all_pictures_aided(df_metadata, output_segfolder,
                                 intitial_segfolder = None, TILE_SIZE=2000,
                                 tile_selection_by = 'maxvar', segfn=basicseg1,
                                 ignore_saved_file=False, showplots=False,
-                                rescalelog = True, bg_percentile=.2, showrawimg=False):
+                                rescalelog = True, bg_percentile=.2, showrawimg=False,
+                                rescalegrey = True, mylabelcolormap = None):
     '''
     
     '''
@@ -376,10 +390,16 @@ def annotate_all_pictures_aided(df_metadata, output_segfolder,
             annotate_pictures_aided(df_metadata, file_idx, 
                                 output_segfolder, 
                                 segfn=segfn,
-                                intitial_segfolder = intitial_segfolder, TILE_SIZE=TILE_SIZE,
+                                intitial_segfolder = intitial_segfolder, 
+                                TILE_SIZE=TILE_SIZE,
                                 tile_selection_by = tile_selection_by, 
-                                ignore_saved_file=ignore_saved_file, showplots=showplots,
-                                rescalelog=rescalelog, bg_percentile=bg_percentile, showrawimg=showrawimg)
+                                ignore_saved_file=ignore_saved_file, 
+                                showplots=showplots,
+                                rescalelog=rescalelog, 
+                                bg_percentile=bg_percentile, 
+                                showrawimg=showrawimg,
+                                rescalegrey=rescalegrey,
+                                mylabelcolormap=mylabelcolormap)
         if quitloop_flag:
             print('Quitting annotation loop as requested by user.')
             break

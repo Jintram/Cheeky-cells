@@ -24,7 +24,8 @@ from skimage.exposure import rescale_intensity
 
 def gen_metadatafile(basedirectory, subdirs, outputdirectory, 
                      suffix='',
-                     file_formats=['.tif','.nd2','.jpg'], segchannel = 'all', invert_image='no', 
+                     file_formats=['.tif','.nd2','.jpg'], 
+                     segchannel = 'all', invert_image='no', 
                      default_columns = ['dataset', 'train_or_test', 'comments']):
                                         # 'basedir', 'subdir' will always be added    
     '''
@@ -49,6 +50,10 @@ def gen_metadatafile(basedirectory, subdirs, outputdirectory,
     
     # make output directory
     os.makedirs(outputdirectory, exist_ok=True)
+    
+    # set subdirs if not given
+    if subdirs is None:
+        subdirs = ['']
     
     # find all .nd2 and .tif files
     allfiles = []
@@ -138,6 +143,12 @@ def get_fileinfo_metadata(df_metadata, file_idx):
     segchannel = df_metadata.loc[file_idx, 'segmentation_channel']
     do_invert = True if df_metadata.loc[file_idx, 'invert_image']=='yes' else False
     
+    # some contingencies for if subdir is either number or nan
+    if pd.isna(subdir):
+        subdir = ''
+    elif isinstance(subdir, (int, float)):
+        subdir = str(subdir)
+    
     return basedir, subdir, filename, segchannel, do_invert
         
     
@@ -197,6 +208,11 @@ def loadimgfile_metadata(df_metadata, file_idx, show_name=False): # , metadatapa
     # Invert image if desired
     if do_invert:
         img = invertimage(img)
+        
+    # reduce channels to 3 if we have more (png might have alpha channel, e.g.)
+    if len(img.shape) == 3:
+        if img.shape[2] > 3:
+            img = img[:,:,:3]     
         
     # Return the correct img (channel)
     if segchannel == 'all' or pd.isna(segchannel):
