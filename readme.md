@@ -19,7 +19,7 @@ convenient to install a Python IDE such as Spyder (software to edit and run pyth
 That is also described in aforementioned link. It is not strictly necessary
 though.
 
-### For the annotation script only
+### Install libraries annotation script only
 
 The actual machine learning scripts require the `pytorch` library, which
 can sometimes be difficult to install. To use the annotation part of the 
@@ -28,26 +28,37 @@ code, you can also choose to only install libraries required for that part.
 To do this, after you installed conda (rather, 'miniconda'), you need to open a terminal and use the following command:
 
 ```bash
-conda create -n cheeky-phase1 -c conda-forge python=3.12 numpy pandas scipy scikit-image matplotlib pillow nd2 napari openpyxl pyqt -y
+conda create -n cheeky-phase1 -c conda-forge numpy pandas scipy scikit-image matplotlib pillow nd2 napari openpyxl pyqt -y
 ```
 
-Afterwards, to run code from this repository in the terminal, use:
-
-```bash
-# Activate the environment
-conda activate cheeky-phase1
-
-# Run a particular part of the code 
-python pipelineclean_phase1_example_roots.py
-```
-
-### To use any script within this repository
+### Install libraries to use any script within this repository
 
 To use any script in the repository, use the following code:
 
 ```bash
 conda create -n cheeky-all -c conda-forge -c pytorch python=3.12 numpy pandas matplotlib pytorch torchvision scipy scikit-image napari pillow nd2 seaborn pyqt openpyxl -y
 ```
+
+### Download the scripts
+
+You will need to put the script in this repository on your computer.
+
+You can download them using the green "<> Code" button at the 
+right top, and press "download zip".
+
+A more advanced option is to set up git and clone the repository to 
+your local computer, see below.
+
+```bash
+# Navigate to the directory you'd like to install the scripts
+cd /path/to/your/directory
+
+# Clone the repository using git
+git clone git@github.com:Jintram/Cheeky-cells.git
+cd Cheeky-cells
+```
+
+### Run a script
 
 Afterwards, to run scripts, use:
 
@@ -58,6 +69,8 @@ conda activate cheeky-all
 # Run a particular part of the code 
 python pipelineclean_phase1_example_roots.py
 ```
+
+or use your favorite python IDE (editing software).
 
 # Use of the script
 
@@ -95,5 +108,4 @@ Set `config1.metadatafiles_path` to point to your edited metadata file, then run
 - Press **`q`** to quit the annotation loop entirely (the current tile is not saved).
 
 Annotations are saved as `.npy` files in the `humanseg/` subfolder of your output directory.
-
 
