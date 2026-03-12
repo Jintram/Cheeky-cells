@@ -19,7 +19,7 @@ convenient to install a Python IDE such as Spyder (software to edit and run pyth
 That is also described in aforementioned link. It is not strictly necessary
 though.
 
-### Install libraries annotation script only
+### (option A) Install libraries annotation script only
 
 The actual machine learning scripts require the `pytorch` library, which
 can sometimes be difficult to install. To use the annotation part of the 
@@ -31,13 +31,17 @@ To do this, after you installed conda (rather, 'miniconda'), you need to open a 
 conda create -n cheeky-phase1 -c conda-forge numpy pandas scipy scikit-image matplotlib pillow nd2 napari openpyxl pyqt -y
 ```
 
-### Install libraries to use any script within this repository
+### (Option B) Install libraries to use any script within this repository
 
 To use any script in the repository, use the following code:
 
 ```bash
 conda create -n cheeky-all -c conda-forge -c pytorch python=3.12 numpy pandas matplotlib pytorch torchvision scipy scikit-image napari pillow nd2 seaborn pyqt openpyxl -y
 ```
+
+On some machines, the libraries `pytorch` and `torchvision` have additional
+requirements. If you get an error related to these libraries, you might need
+to address these issues by installing additional software.
 
 ### Download the scripts
 
