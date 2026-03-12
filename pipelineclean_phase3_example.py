@@ -57,8 +57,8 @@ config3_ara_root = o3.collect_filelist(config3_ara_root)
     
 # now segment them
 o3.segment_all_files(config3_ara_root,
-                     # max_files_to_process=10, # for test-run purposes
-                     # overwrite_files=True
+                     # max_files_to_process=200, # for test-run purposes
+                     overwrite_files=True
                      )
 
 

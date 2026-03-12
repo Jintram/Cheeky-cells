@@ -29,6 +29,7 @@ def bbox_from_mask_light(mask: np.ndarray):
     # Project the 2D mask on X or Y (for efficiency)
     rows_any = mask.any(axis=1)
     cols_any = mask.any(axis=0)
+        # plt.plot(range(len(rows_any)), rows_any)
 
     if not rows_any.any():
         return None
@@ -106,7 +107,7 @@ def preprocess_getbbox_insideplate2(img_in_raw, margin_left = 100, margin_right 
     # now plot this as line
     # plt.plot(img_proj_row/np.max(img_proj_row)); plt.plot(img_proj_col/np.max(img_proj_col)); plt.show()
     
-    # get the 1 and 99 percentile values
+    # get percentile values
     # p1  = np.percentile(img_in_gray, 1)
     p50 = np.percentile(img_in_gray, 50)
     # p99 = np.percentile(img_in_gray, 99)

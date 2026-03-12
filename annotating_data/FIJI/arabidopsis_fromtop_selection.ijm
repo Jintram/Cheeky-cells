@@ -54,13 +54,19 @@ rename(a);
 // Remove small particles from the mask (creating new mask)
 run("Analyze Particles...", "size=400-Infinity show=Masks");
 run("Invert");
-//selectWindow(a);
-//close();
+// Close the intermediate threshold mask
+selectWindow(a);
+close();
 selectWindow("Mask of " + a);
 
 // Perform morphological opening
 run("Morphological Filters", "operation=Closing element=Disk radius=2");
+// Close the pre-morphology mask
+selectWindow("Mask of " + a);
+close();
 
+// The morphological filter result is now the active window
+// (named "Mask of <a>-Closing")
 // convert mask to selection
 run("Create Selection");
 
@@ -68,6 +74,8 @@ run("Create Selection");
 roiIndex = roiManager("count"); // to get ID of the ROI
 roiManager("Add");
 
-// close(); // close the mask
+// Close the final mask after extracting the ROI
+close();
+
 selectImage(originalID);
 roiManager("Select", roiIndex);
