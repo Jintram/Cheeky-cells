@@ -19,7 +19,9 @@ import prepostprocessing_input.ara_roots.ara_plotting as arootp
 # %% ###########################################################################
 # Configuration
 
+# Directory where to find the images that you want to annotate
 INPUTDIRECTORY = "/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/Cropped/"
+# Directory where the scripts should store your annotated files
 OUTPUTDIRECTORY = "/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/humanseg-testonly/"
 
 # Configuration for this dataset
@@ -43,10 +45,13 @@ o1.phase1_setup(config1)
 
 # First, adjust the metadata_imagefiles_autogen.xlsx as required
 # (and rename it to avoid overwriting behavior).
-
-config1.metadatafiles_path = \
+# Set the path to the metadata file below
+METADATA_FILE = \
     "/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/humanseg-testonly/metadata_imagefiles_manual.xlsx"
 
+# Update config1 accordingly
+config1.metadatafiles_path = METADATA_FILE
+    
 # now create annotated pictures
 o1.phase1_annotate(config1)
 # %%

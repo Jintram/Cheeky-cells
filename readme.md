@@ -22,8 +22,11 @@ though.
 ### (option A) Install libraries annotation script only
 
 The actual machine learning scripts require the `pytorch` library, which
-can sometimes be difficult to install. To use the annotation part of the 
-code, you can also choose to only install libraries required for that part. 
+can sometimes be difficult to install. 
+You can also install all libraries required for the scripts, and exclude the machine
+learning libraries. 
+You cannot use all code in that case, but this might be useful if you e.g. 
+only want to run "Phase I" (the annotation part) of the code.
 
 To do this, after you installed conda (rather, 'miniconda'), you need to open a terminal and use the following command:
 
@@ -45,7 +48,7 @@ to address these issues by installing additional software.
 
 ### Download the scripts
 
-You will need to put the script in this repository on your computer.
+You will need to put the scripts in this repository on your computer.
 
 You can download them using the green "<> Code" button at the 
 right top, and press "download zip".
@@ -74,7 +77,27 @@ conda activate cheeky-all
 python pipelineclean_phase1_example_roots.py
 ```
 
-or use your favorite python IDE (editing software).
+In case you choose the limited installation (option A above), replace
+`cheeky-all` with `cheeky-phase1`.
+
+### Run a script from the IDE
+
+In some cases it's convenient to run the script from an IDE. 
+In that case, make sure to install the IDE in your conda environment, 
+e.g. for Spyder:
+
+```bash
+conda activate cheeky-all 
+conda install -c conda-forge spyder -y
+```
+
+Then, open your IDE from the terminal after activating the Conda environment.
+For Spyder, see this example:
+
+```bash
+conda activate cheeky-all 
+spyder
+```
 
 # Use of the script
 
