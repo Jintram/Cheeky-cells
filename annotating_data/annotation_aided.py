@@ -313,12 +313,14 @@ def annotate_pictures_aided(df_metadata, file_idx,
     
     viewer = napari.Viewer()
     if showrawimg:
-        viewer.add_image(img_toseg_tile)
+        viewer.add_image(img_toseg_tile,
+                         name='Original image')
     else:
-        viewer.add_image(img_toseg_tile_rescaled)
+        viewer.add_image(img_toseg_tile_rescaled,
+                         name='Original image')
     
     # add a label layer                           
-    seg_layer = viewer.add_labels(name='segmentation', 
+    seg_layer = viewer.add_labels(name='Annotation', 
                                   data=img_seg0_tile,
                                   colormap=mylabelcolormap)
 

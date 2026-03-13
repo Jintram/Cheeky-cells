@@ -210,6 +210,7 @@ def segment_all_files(config: Phase3Config,
         # file_idx = 0
         # file_idx=454
         # file_idx = 8
+        # file_idx = 16
         
         print(f'Processing file {file_idx+1}/{nr_files} ..')
         

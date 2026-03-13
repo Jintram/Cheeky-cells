@@ -69,6 +69,8 @@ if False:
     
     # Given a filename (e.g. 20250620_OY_06), find index in the df_metadata_input
     np.where(df_metadata_input.loc[:,'filename'].str.contains('20250617_OY_17'))
+    np.where(df_metadata_input.loc[:,'filename'].str.contains('20250617_OY_15'))
+    
 
 
 # %% 
