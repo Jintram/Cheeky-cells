@@ -240,6 +240,35 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=
 # %% #################################################################################
 
 
+def edit_annotation_napari(image, segmentation, mylabelcolormap=None):
+    '''
+    Opens napari with `image` as background and `segmentation` as an editable label
+    layer, optionally styled with `mylabelcolormap`. Returns `(seg_data, quitloop_flag)`,
+    where `seg_data` is the edited annotation (or None if quit) and `quitloop_flag`
+    is True if the user pressed 'q'.
+    '''
+    quitloop_flag = False
+
+    viewer = napari.Viewer()
+    viewer.add_image(image, name='Original image')
+    seg_layer = viewer.add_labels(name='Annotation',
+                                  data=segmentation,
+                                  colormap=mylabelcolormap)
+
+    def _on_quit(event=None):
+        nonlocal quitloop_flag
+        quitloop_flag = True
+        viewer.close()
+
+    viewer.bind_key('q', _on_quit)
+    napari.run()
+
+    if quitloop_flag:
+        return None, True
+
+    return seg_layer.data, False
+
+
 def annotate_pictures_aided(df_metadata, file_idx, 
                             output_segfolder, 
                             segfn = basicseg1,
@@ -309,39 +338,14 @@ def annotate_pictures_aided(df_metadata, file_idx,
             # plt.imshow(img_seg0_tile); plt.show(); plt.close()
             
     # now improve this image in napari 
-    quitloop_flag = False
-    
-    viewer = napari.Viewer()
-    if showrawimg:
-        viewer.add_image(img_toseg_tile,
-                         name='Original image')
-    else:
-        viewer.add_image(img_toseg_tile_rescaled,
-                         name='Original image')
-    
-    # add a label layer                           
-    seg_layer = viewer.add_labels(name='Annotation', 
-                                  data=img_seg0_tile,
-                                  colormap=mylabelcolormap)
-
-    # define a callback that sets a flag and closes the viewer
-    def _on_quit(event=None):
-        nonlocal quitloop_flag # will change scope to one level higher (the enclosing function)
-        quitloop_flag = True
-        viewer.close()
-
-    # bind the 'q' key to close napari and signal quitting the outer loop
-    viewer.bind_key('q', _on_quit)
-    
-    # run napari event loop; when closed, check whether user requested quitting
-    napari.run()
+    display_image = img_toseg_tile if showrawimg else img_toseg_tile_rescaled
+    seg_layer_data, quitloop_flag = edit_annotation_napari(display_image, img_seg0_tile, mylabelcolormap)
         
     if quitloop_flag:
         return quitloop_flag
         
     # now save the annotation data
     print('Saving annotation data')
-    seg_layer_data = seg_layer.data
     np.save(output_segfolder + newfilename_annot, seg_layer_data)
     np.save(output_segfolder + newfilename_img, img_toseg_tile)
     np.save(output_segfolder + newfilename_extra, img_toseg_tile_edges)
