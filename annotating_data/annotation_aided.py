@@ -275,7 +275,8 @@ def annotate_pictures_aided(df_metadata, file_idx,
                             intitial_segfolder = None, TILE_SIZE=2000,
                             tile_selection_by = 'maxvar', 
                             ignore_saved_file=False, showplots=False, rescalelog=True, bg_percentile=.2, showrawimg=False,
-                            rescalegrey=True, mylabelcolormap=None):
+                            rescalegrey=True, mylabelcolormap=None,
+                            mynaparifunction=None):
     '''
     
     '''
@@ -339,7 +340,10 @@ def annotate_pictures_aided(df_metadata, file_idx,
             
     # now improve this image in napari 
     display_image = img_toseg_tile if showrawimg else img_toseg_tile_rescaled
-    seg_layer_data, quitloop_flag = edit_annotation_napari(display_image, img_seg0_tile, mylabelcolormap)
+    # call the napari edit function
+    if mynaparifunction is None:
+        mynaparifunction = edit_annotation_napari  
+    seg_layer_data, quitloop_flag = mynaparifunction(display_image, img_seg0_tile, mylabelcolormap)
         
     if quitloop_flag:
         return quitloop_flag
@@ -369,7 +373,8 @@ def annotate_all_pictures_aided(df_metadata, output_segfolder,
                                 tile_selection_by = 'maxvar', segfn=basicseg1,
                                 ignore_saved_file=False, showplots=False,
                                 rescalelog = True, bg_percentile=.2, showrawimg=False,
-                                rescalegrey = True, mylabelcolormap = None):
+                                rescalegrey = True, mylabelcolormap = None,
+                                mynaparifunction = None):
     '''
     
     '''
@@ -405,7 +410,8 @@ def annotate_all_pictures_aided(df_metadata, output_segfolder,
                                 bg_percentile=bg_percentile, 
                                 showrawimg=showrawimg,
                                 rescalegrey=rescalegrey,
-                                mylabelcolormap=mylabelcolormap)
+                                mylabelcolormap=mylabelcolormap,
+                                mynaparifunction=mynaparifunction)
         if quitloop_flag:
             print('Quitting annotation loop as requested by user.')
             break

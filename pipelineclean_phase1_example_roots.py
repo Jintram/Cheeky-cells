@@ -52,6 +52,10 @@ METADATA_FILE = \
 # Update config1 accordingly
 config1.metadatafiles_path = METADATA_FILE
     
+# to use a custom napari edit function (not required, but can be convenient)  
+import root_length.functions_pipeline.edit_segfiles as pl_edit
+config1.my_napari_function = pl_edit.edit_annotation_napari
+    
 # now create annotated pictures
 o1.phase1_annotate(config1)
 # %%

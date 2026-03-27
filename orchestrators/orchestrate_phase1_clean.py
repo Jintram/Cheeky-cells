@@ -55,6 +55,8 @@ class Phase1Config:
     
     # custom color map for Napari display
     mylabelcolormap: dict = None
+    # custom Napari function
+    my_napari_function: Callable | None = None
 
 
 # %% ################################################################################
@@ -101,5 +103,6 @@ def phase1_annotate(config1):
         bg_percentile=config1.bg_percentile,
         showrawimg=True,
         rescalegrey=config1.rescalegreyforseg,
-        mylabelcolormap=config1.mylabelcolormap
+        mylabelcolormap=config1.mylabelcolormap,
+        mynaparifunction=config1.my_napari_function
     )
