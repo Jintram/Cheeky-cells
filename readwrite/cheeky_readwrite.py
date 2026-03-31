@@ -104,7 +104,9 @@ def gen_metadatafile_segfiles(basedirectory, outputdirectory,
     os.makedirs(outputdirectory, exist_ok=True)
     
     # find all image files
-    all_paths = glob.glob(os.path.join(basedirectory, '**', f'*[{"|".join(file_formats)}]'))
+    all_paths = []
+    for ext in file_formats:
+        all_paths.extend(glob.glob(os.path.join(basedirectory,f'**/*{ext}'), recursive=True))
     
     # Now get the subdirs and filenames
     all_subdirs = [
@@ -201,6 +203,8 @@ def loadimgfile_metadata(df_metadata, file_idx, show_name=False): # , metadatapa
     if filename.endswith('.nd2'):
         # nd2 files need separate lib to load
         img = nd2.ND2File(fullpath).asarray()
+    elif filename.endswith('.npy'):
+        img = np.load(fullpath)
     else:
         img = skio.imread(fullpath)
         # plt.imshow(img); plt.show()

@@ -70,6 +70,10 @@ class Phase3Config:
     
     # Optional plotting settings
     cmap_custom: ListedColormap | None = None
+    
+    # Save _img.npy and _img_enhanced.npy alongside segmentation
+    # (useful for feeding predictions back into the annotation loop)
+    save_images: bool = False
 
 
 # %% ################################################################################
@@ -128,7 +132,7 @@ def get_input_img_file(config: Phase3Config,
         bg_percentile=config.bg_percentile)
         # plt.imshow(img_toseg_prepr_norm)
     
-    return img_toseg_prepr_norm, prepr_info
+    return img_toseg_prepr_norm, img_toseg_prepr, prepr_info
 
 
 def initialize_unet_model_for_inference(config: Phase3Config):
@@ -237,7 +241,7 @@ def segment_all_files(config: Phase3Config,
         
         
         # Get image to seg
-        img_toseg_prepr_norm, prepr_info = get_input_img_file(
+        img_toseg_prepr_norm, img_toseg_prepr, prepr_info = get_input_img_file(
             config = config,
             df_metadata = df_metadata_input,
             file_idx=file_idx
@@ -283,6 +287,12 @@ def segment_all_files(config: Phase3Config,
         np.savez_compressed(filepath_segfile, 
                             img_pred_lbls=img_pred_lbls,
                             prepr_info=prepr_info)
+        
+        # Optionally save images (for feeding back into annotation loop)
+        if config.save_images:
+            np.save(filepath_segfile.replace("_seg.npz", "_img.npy"), img_toseg_prepr)
+            np.save(filepath_segfile.replace("_seg.npz", "_img_enhanced.npy"), img_toseg_prepr_norm)
+        
         print('Saving done..')
         
         # Reset Torch cache to prevent memory build up
