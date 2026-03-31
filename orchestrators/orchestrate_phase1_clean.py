@@ -57,6 +57,10 @@ class Phase1Config:
     mylabelcolormap: dict = None
     # custom Napari function
     my_napari_function: Callable | None = None
+    
+    # Infix for output filenames (default '_tile' from tiling;
+    # set to '' when correcting phase 3 output)
+    file_infix: str = '_tile'
 
 
 # %% ################################################################################
@@ -66,8 +70,10 @@ class Phase1Config:
 def phase1_setup(config1: Phase1Config) -> None:
     
     # Set up output folders
-    config1.segfolder = os.path.join(config1.outputdirectory, 'humanseg/')
-    config1.pltfolder = os.path.join(config1.outputdirectory, 'plots/')
+    if config1.segfolder is None:
+        config1.segfolder = os.path.join(config1.outputdirectory, 'humanseg/')
+    if config1.pltfolder is None:    
+        config1.pltfolder = os.path.join(config1.outputdirectory, 'plots/')
     os.makedirs(config1.segfolder, exist_ok=True)
     os.makedirs(config1.pltfolder, exist_ok=True)
   
@@ -104,5 +110,6 @@ def phase1_annotate(config1):
         showrawimg=True,
         rescalegrey=config1.rescalegreyforseg,
         mylabelcolormap=config1.mylabelcolormap,
-        mynaparifunction=config1.my_napari_function
+        mynaparifunction=config1.my_napari_function,
+        file_infix=config1.file_infix
     )

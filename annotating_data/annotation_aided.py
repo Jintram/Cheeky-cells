@@ -276,7 +276,8 @@ def annotate_pictures_aided(df_metadata, file_idx,
                             tile_selection_by = 'maxvar', 
                             ignore_saved_file=False, showplots=False, rescalelog=True, bg_percentile=.2, showrawimg=False,
                             rescalegrey=True, mylabelcolormap=None,
-                            mynaparifunction=None):
+                            mynaparifunction=None,
+                            file_infix='_tile'):
     '''
     
     '''
@@ -327,15 +328,21 @@ def annotate_pictures_aided(df_metadata, file_idx,
         
     # Prepare output filenames
     filename_base = os.path.splitext(filename)[0]
-    newfilename_annot        = filename_base + '_tile_seg.npy'
-    newfilename_img          = filename_base + '_tile_img.npy' 
-    newfilename_img_enhanced = filename_base + '_tile_img_enhanced.npy'
-    newfilename_extra        = filename_base + '_tile_transform.npy' # edge transform
+    newfilename_annot        = filename_base + file_infix + '_seg.npy'
+    newfilename_img          = filename_base + file_infix + '_img.npy' 
+    newfilename_img_enhanced = filename_base + file_infix + '_img_enhanced.npy'
+    newfilename_extra        = filename_base + file_infix + '_transform.npy' # edge transform
         
     # if seg file already exists, load it (assumes also other files match)
+    # also check for .npz (phase 3 output format)
+    newfilename_annot_npz = newfilename_annot.replace('.npy', '.npz')
     if os.path.exists(output_segfolder + newfilename_annot) and (not ignore_saved_file):
         print('Loaded image seg file:', newfilename_annot)
         img_seg0_tile = np.load(output_segfolder + newfilename_annot, allow_pickle=True)
+    elif os.path.exists(output_segfolder + newfilename_annot_npz) and (not ignore_saved_file):
+        print('Loaded image seg file (.npz):', newfilename_annot_npz)
+        npz_data = np.load(output_segfolder + newfilename_annot_npz, allow_pickle=True)
+        img_seg0_tile = npz_data['img_pred_lbls']
             # plt.imshow(img_seg0_tile); plt.show(); plt.close()
             
     # now improve this image in napari 
@@ -374,7 +381,8 @@ def annotate_all_pictures_aided(df_metadata, output_segfolder,
                                 ignore_saved_file=False, showplots=False,
                                 rescalelog = True, bg_percentile=.2, showrawimg=False,
                                 rescalegrey = True, mylabelcolormap = None,
-                                mynaparifunction = None):
+                                mynaparifunction = None,
+                                file_infix = '_tile'):
     '''
     
     '''
@@ -411,7 +419,8 @@ def annotate_all_pictures_aided(df_metadata, output_segfolder,
                                 showrawimg=showrawimg,
                                 rescalegrey=rescalegrey,
                                 mylabelcolormap=mylabelcolormap,
-                                mynaparifunction=mynaparifunction)
+                                mynaparifunction=mynaparifunction,
+                                file_infix=file_infix)
         if quitloop_flag:
             print('Quitting annotation loop as requested by user.')
             break

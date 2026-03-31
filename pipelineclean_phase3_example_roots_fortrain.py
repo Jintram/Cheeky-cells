@@ -3,7 +3,9 @@
 
 # Segments arabidopsis root/shoot dataset
 
-
+# In this example, also image and rescaled images are outputted
+# Now, the output can be used for training purposes (ie serve as input
+# for phase 1).
 
 # %% ###########################################################################
 # Libraries
@@ -30,16 +32,18 @@ import plotting.plotting as pp
 SCRIPT_DIR = '/Users/m.wehrens/Documents/git_repos/_UVA/_Projects-MolCyto/2025_Cheeky-cells/'
 
 # dataset spcecific config
-OUTPUT_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/202602/SEG/'
 CURRENT_MODEL = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/models/modelUNet20251026_1027.pth'
-DATA_DIR = '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/DATA/'
-
+DATA_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/Originals/'
+OUTPUT_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/model_seg/'
 
 # Add the script dir to "path"
 if SCRIPT_DIR not in sys.path:
     sys.path.append(SCRIPT_DIR)
 
 # Now initialize a configuration
+# The flag "save_images=True" generates additional output data.
+# This allows the segmented images to be used as training data.
+# Turn this of if you don't want this, to avoid excessive hard disk use.
 config3_ara_root = o3.Phase3Config(
     outputdirectory = OUTPUT_DIR,
     nr_classes = 5,
@@ -47,9 +51,12 @@ config3_ara_root = o3.Phase3Config(
     model_checkpoint_to_load = CURRENT_MODEL,
     bg_percentile = 10,
     data_path_input = DATA_DIR,
-    fn_specific_preprocessing = pp_ara.preprocess_getbbox_insideplate2,
+    fn_specific_preprocessing = None,
+        # Let's not do cropping
     fn_plotting = pp.overlayplot,
-    cmap_custom = plt_ara.cmap_custom_plantclasses
+    cmap_custom = plt_ara.cmap_custom_plantclasses,
+    save_images=True
+        # Required to export to 
 )    
 
 # Collect all files that are to be segmented, store data in metadata
@@ -76,19 +83,3 @@ if False:
     np.where(df_metadata_input.loc[:,'filename'].str.contains('20250617_OY_17'))
     np.where(df_metadata_input.loc[:,'filename'].str.contains('20250617_OY_15'))
     
-
-
-# %% 
-
-# REMOVE THIS CODE
-
-# import os
-# for file_idx in range(452, 1000):
-#     print(f"Processing file idx {file_idx} ..")
-#     filepath_segfile = \
-#         os.path.join(config.outputdirectory, "segfiles/", 
-#                         df_metadata_input.loc[file_idx, 'subdir'], 
-#                         f'segfile_idx{file_idx:03d}.npz')
-#     # remove filepath_segfile if it's there
-#     if os.path.exists(filepath_segfile):
-#         os.remove(filepath_segfile)
