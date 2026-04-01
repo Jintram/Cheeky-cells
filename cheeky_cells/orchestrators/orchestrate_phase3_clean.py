@@ -29,11 +29,11 @@ import torch
 
 from torchvision.transforms import ToTensor
 
-import readwrite.cheeky_readwrite as crw
+import cheeky_cells.readwrite.cheeky_readwrite as crw
     # import importlib; importlib.reload(crw)
-import annotating_data.annotation_aided as caa
+import cheeky_cells.annotating_data.annotation_aided as caa
     # import importlib; importlib.reload(caa)
-from machine_learning.model import unet_model as cunet
+from cheeky_cells.machine_learning.model import unet_model as cunet
 
 
 # %% ################################################################################

@@ -26,7 +26,7 @@ import pandas as pd
 
 # folder_devplots= '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/ANALYSIS/20251015/devplots/'
 
-import readwrite.cheeky_readwrite as crw
+import cheeky_cells.readwrite.cheeky_readwrite as crw
     # import importlib; importlib.reload(crw)
 
 cm_to_inch = 1/2.54

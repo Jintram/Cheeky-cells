@@ -13,11 +13,11 @@ import sys
 import pandas as pd
 
 # custom libs
-import readwrite.cheeky_readwrite as crw
+import cheeky_cells.readwrite.cheeky_readwrite as crw
     # import importlib; importlib.reload(crw)
-import annotating_data.annotation_aided as caa
+import cheeky_cells.annotating_data.annotation_aided as caa
     # import importlib; importlib.reload(caa)
-import annotating_data.dedicated_segmentation as cds
+import cheeky_cells.annotating_data.dedicated_segmentation as cds
 
 # %% ################################################################################
 # Phase 1 configuration container (isolated)

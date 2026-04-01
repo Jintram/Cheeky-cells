@@ -78,9 +78,8 @@ def ensure_output_dirs(paths: dict) -> None:
 
 
 def add_script_dir_to_path(script_dir: str) -> None:
-    # Make repository modules importable
-    if script_dir not in sys.path:
-        sys.path.append(script_dir)
+    # No longer needed — cheeky_cells is installed as a package.
+    pass
 
 
 def resolve_device(requested_device: str) -> str:
@@ -92,9 +91,9 @@ def resolve_device(requested_device: str) -> str:
 
 def import_custom_modules_phase2():
     # Import only modules needed for phase 2
-    from machine_learning.datasetclass import dataset_classes as cdc
-    from machine_learning.model import unet_model as cunet
-    from machine_learning.trainer import trainer as ct
+    from cheeky_cells.machine_learning.datasetclass import dataset_classes as cdc
+    from cheeky_cells.machine_learning.model import unet_model as cunet
+    from cheeky_cells.machine_learning.trainer import trainer as ct
 
     return cdc, cunet, ct
 

@@ -8,13 +8,13 @@ for training and testing purposes.
 
 import sys
 
-import orchestrators.orchestrate_phase1_clean as o1
+import cheeky_cells.orchestrators.orchestrate_phase1_clean as o1
     # import importlib; importlib.reload(o1)
-import annotating_data.dedicated_segmentation as cds
+import cheeky_cells.annotating_data.dedicated_segmentation as cds
     # import importlib; importlib.reload(cds)
 
 # custom color map
-import prepostprocessing_input.ara_roots.ara_plotting as arootp
+import cheeky_cells.prepostprocessing_input.ara_roots.ara_plotting as arootp
 
 # %% ###########################################################################
 # Configuration
@@ -51,7 +51,7 @@ o1.phase1_setup(config1)
 # (and rename it to avoid overwriting behavior).
 # Set the path to the metadata file below
 METADATA_FILE = \
-    "/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/humanseg-testonly/metadata_imagefiles_autogen.xlsx"
+    "/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/model_seg_20260331/metadata_imagefiles_autogen.xlsx"
 
 # Update config1 accordingly
 config1.metadatafiles_path = METADATA_FILE

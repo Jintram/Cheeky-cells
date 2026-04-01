@@ -8,9 +8,9 @@ for training and testing purposes.
 
 import sys
 
-import orchestrators.orchestrate_phase1_clean as o1
+import cheeky_cells.orchestrators.orchestrate_phase1_clean as o1
     # import importlib; importlib.reload(o1)
-import annotating_data.dedicated_segmentation as cds
+import cheeky_cells.annotating_data.dedicated_segmentation as cds
     # import importlib; importlib.reload(cds)
 
 

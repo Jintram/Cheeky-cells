@@ -11,9 +11,9 @@ from skimage.measure import label
 
 cm_to_inch = 1/2.54
 
-import readwrite.cheeky_readwrite as crw
+import cheeky_cells.readwrite.cheeky_readwrite as crw
     # import importlib; importlib.reload(crw)
-import annotating_data.annotation_aided as caa
+import cheeky_cells.annotating_data.annotation_aided as caa
 
 # %% ################################################################################
 

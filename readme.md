@@ -65,6 +65,13 @@ git clone git@github.com:Jintram/Cheeky-cells.git
 cd Cheeky-cells
 ```
 
+Then, you need to run the following command (replace `/path/to/script/directory`
+by the actual path):
+
+```bash
+pip install -e /path/to/script/directory
+```
+
 ### Run a script
 
 Afterwards, to run scripts, use:

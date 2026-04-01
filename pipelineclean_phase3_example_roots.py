@@ -7,36 +7,27 @@
 # %% ###########################################################################
 # Libraries
 
-import sys
-
-import orchestrators.orchestrate_phase3_clean as o3
+import cheeky_cells.orchestrators.orchestrate_phase3_clean as o3
     # import importlib; importlib.reload(o3)
     # import importlib; importlib.reload(crw)
 
 # Dataset-specific imports
 # To pre-process a raw image
-import prepostprocessing_input.ara_roots.preprocessing as pp_ara
-import prepostprocessing_input.ara_roots.ara_plotting as plt_ara
+import cheeky_cells.prepostprocessing_input.ara_roots.preprocessing as pp_ara
+import cheeky_cells.prepostprocessing_input.ara_roots.ara_plotting as plt_ara
     # import importlib; importlib.reload(pp_ara)
 
-import plotting.plotting as pp
+import cheeky_cells.plotting.plotting as pp
     # import importlib; importlib.reload(pp)
 
 # %% ###########################################################################
 # Configuration
-
-# general config
-SCRIPT_DIR = '/Users/m.wehrens/Documents/git_repos/_UVA/_Projects-MolCyto/2025_Cheeky-cells/'
 
 # dataset spcecific config
 OUTPUT_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/202602/SEG/'
 CURRENT_MODEL = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/models/modelUNet20251026_1027.pth'
 DATA_DIR = '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/DATA/'
 
-
-# Add the script dir to "path"
-if SCRIPT_DIR not in sys.path:
-    sys.path.append(SCRIPT_DIR)
 
 # Now initialize a configuration
 config3_ara_root = o3.Phase3Config(

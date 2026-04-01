@@ -19,7 +19,7 @@ from PIL import Image
 
 import warnings
 
-import readwrite.cheeky_readwrite as crw
+import cheeky_cells.readwrite.cheeky_readwrite as crw
     # import importlib; importlib.reload(crw)
 
 # custom code
