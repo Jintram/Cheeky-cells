@@ -152,6 +152,7 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=
     
     # identify tile that we'll select, either by max variance or signal
     def getnnonzero(anarray):
+        anarray = anarray.copy() 
         anarray[anarray==0] = np.min(anarray)
         return anarray    
     if tile_selection_by == 'maxvar':

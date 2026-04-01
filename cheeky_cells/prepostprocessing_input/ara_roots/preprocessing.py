@@ -77,11 +77,11 @@ def preprocess_getbbox_insideplate(img_in_raw, margin_left = 100, margin_right =
     # If bbox covering minimum area isn't identified, return full image
     if (r1-r0) * (c1-c0) < min_expected_area:
         print("No large enough region detected, returning full image")
-        return img_in_raw, (0, img_in_raw.shape[0], 0, img_in_raw.shape[1])
+        return img_in_raw.copy(), (0, img_in_raw.shape[0], 0, img_in_raw.shape[1])
     
     # now create the cropped image
     rect = (r0+margin_top, r1-margin_bottom, c0+margin_left, c1-margin_right)
-    img_cropped = img_in_raw[rect[0]:rect[1], rect[2]:rect[3]]
+    img_cropped = img_in_raw[rect[0]:rect[1], rect[2]:rect[3]].copy()
     # plt.imshow(img_cropped); plt.show()
     
     return img_cropped, rect
@@ -145,11 +145,11 @@ def preprocess_getbbox_insideplate2(img_in_raw, margin_left = 100, margin_right 
     # If bbox covering minimum area isn't identified, return full image
     if (r1-r0) * (c1-c0) < min_expected_area:
         print("No large enough region detected, returning full image")
-        return img_in_raw, (0, img_in_raw.shape[0], 0, img_in_raw.shape[1])
+        return img_in_raw.copy(), (0, img_in_raw.shape[0], 0, img_in_raw.shape[1])
     
     # now create the cropped image
     rect = (r0+margin_top, r1-margin_bottom, c0+margin_left, c1-margin_right)
-    img_cropped = img_in_raw[rect[0]:rect[1], rect[2]:rect[3]]
+    img_cropped = img_in_raw[rect[0]:rect[1], rect[2]:rect[3]].copy()
     # plt.imshow(img_cropped); plt.show()
     
     return img_cropped, rect
