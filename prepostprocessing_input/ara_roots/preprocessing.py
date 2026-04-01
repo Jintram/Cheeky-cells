@@ -154,6 +154,48 @@ def preprocess_getbbox_insideplate2(img_in_raw, margin_left = 100, margin_right 
     
     return img_cropped, rect
 
+# %%
+
+def preprocess_erasebounds(img_in_raw, margin_left = 100, margin_right = 100, 
+                                         margin_top = 250, margin_bottom = 250,
+                                         min_expected_area = 500000):
+    """ 
+    Use preprocess_getbbox_insideplate2 erase non-foreground margins.
+    
+    Use preprocess_getbbox_insideplate2 function to establish the area of interest
+    in the sample. Then modify the input image: set all pixels that fall outside 
+    that area to the mode of the ROI. Return the modified image.
+    
+    Note: I wrote this function because there were segmentation issues
+    due to rescaling issues in taking full sample vs auto-cropped samples.
+    And I wanted to be able to generate predictions that are equal to the
+    original size. 
+    However, turns out tuning the bg_percentile parameter during rescaling
+    already resolved the issue. So this function has become superfluous.
+    """
+    
+    img_cropped, rect = preprocess_getbbox_insideplate2(
+        img_in_raw, margin_left = margin_left, margin_right = margin_right, 
+        margin_top = margin_top, margin_bottom = margin_bottom,
+        min_expected_area = min_expected_area)
+    
+    the_mask = np.zeros_like(img_in_raw)
+    
+        # plt.imshow(the_mask*255)
+    
+    new_img = img_in_raw.copy()
+    
+    if len(img_in_raw.shape) > 2:
+        the_mask[rect[0]:rect[1], rect[2]:rect[3], :] = 1
+        mymode = [np.bincount(img_in_raw[:,:,the_chann].ravel()).argmax() for the_chann in range(img_in_raw.shape[2])]
+        for ch in range(img_in_raw.shape[2]):
+            new_img[the_mask[:,:,ch]==0, ch] = mymode[ch]
+    else:
+        the_mask[rect[0]:rect[1], rect[2]:rect[3]] = 1
+        mymode = np.bincount(img_in_raw[:,:].ravel()).argmax()
+        new_img[the_mask[:,:]==0] = mymode
+    
+    return new_img, rect
 
 # %% 
 

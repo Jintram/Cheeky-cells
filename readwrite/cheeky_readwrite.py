@@ -227,6 +227,10 @@ def loadimgfile_metadata(df_metadata, file_idx, show_name=False): # , metadatapa
 
 def subtractbaseline(anarray, bg_percentile=.2):
     
+    # prevent modifying original array
+    anarray = anarray.copy()
+    
+    # apply subtraction
     thresholdlow = np.percentile(anarray, bg_percentile)
     anarray[anarray < thresholdlow] = thresholdlow
     anarray = anarray - thresholdlow
@@ -234,6 +238,9 @@ def subtractbaseline(anarray, bg_percentile=.2):
     return anarray
 
 def image_autorescale(input_img, rescalelog=True, bg_percentile=.2):
+    """
+    bg_percentile between 0..100
+    """
     # input_img=np.zeros([20,20])
     # input_img=img_toseg
     
@@ -241,7 +248,7 @@ def image_autorescale(input_img, rescalelog=True, bg_percentile=.2):
     # plt.hist(image_autorescale(input_img).ravel())
     
     # make the image float32 first
-    input_img = input_img.astype(np.float32)
+    input_img = input_img.copy().astype(np.float32)
     
     # first add a 3rd dimension (corresponding to channels) if there isn't any
     if len(input_img.shape)==2:
@@ -365,3 +372,5 @@ def savesegfile_default(x, df_metadata, file_idx, segfolder, suffix):
     # now write the file
     np.save(segfolder + newfilename_annot, x)
     
+# %%
+# 

@@ -49,10 +49,15 @@ config3_ara_root = o3.Phase3Config(
     nr_classes = 5,
     nr_channels_input = 3, # (input is rgb, so 3 channels)
     model_checkpoint_to_load = CURRENT_MODEL,
-    bg_percentile = 10,
+    bg_percentile = 50,
     data_path_input = DATA_DIR,
-    fn_specific_preprocessing = None,
-        # Let's not do cropping
+    # fn_specific_preprocessing = pp_ara.preprocess_getbbox_insideplate2,
+    fn_specific_preprocessing = pp_ara.preprocess_erasebounds,    
+        # preprocess_erasebounds is a wrapper around preprocess_getbbox_insideplate2,
+        # which erases background region instead of cropping foreground.
+        # for annotation images, i'd like to not crop, to also train various
+        # background. an alternative to `preprocess_erasebounds` is to 
+        # set fn_specific_preprocessing to None (and adjust bg_percentile accordingly)
     fn_plotting = pp.overlayplot,
     cmap_custom = plt_ara.cmap_custom_plantclasses,
     save_images=True
@@ -72,6 +77,7 @@ o3.segment_all_files(config3_ara_root,
                      # max_files_to_process=200, # for test-run purposes
                      overwrite_files=True
                      )
+
 
 
 # %%

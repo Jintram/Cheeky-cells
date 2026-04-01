@@ -240,7 +240,7 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=
 # %% #################################################################################
 
 
-def edit_annotation_napari(image, segmentation, mylabelcolormap=None):
+def edit_annotation_napari(image, segmentation, mylabelcolormap=None, title='Edit seg file'):
     '''
     Opens napari with `image` as background and `segmentation` as an editable label
     layer, optionally styled with `mylabelcolormap`. Returns `(seg_data, quitloop_flag)`,
@@ -249,7 +249,7 @@ def edit_annotation_napari(image, segmentation, mylabelcolormap=None):
     '''
     quitloop_flag = False
 
-    viewer = napari.Viewer()
+    viewer = napari.Viewer(title=title)
     viewer.add_image(image, name='Original image')
     seg_layer = viewer.add_labels(name='Annotation',
                                   data=segmentation,
@@ -347,10 +347,11 @@ def annotate_pictures_aided(df_metadata, file_idx,
             
     # now improve this image in napari 
     display_image = img_toseg_tile if showrawimg else img_toseg_tile_rescaled
+    str_windowtitle = 'Editing file ' + filename_base
     # call the napari edit function
     if mynaparifunction is None:
         mynaparifunction = edit_annotation_napari  
-    seg_layer_data, quitloop_flag = mynaparifunction(display_image, img_seg0_tile, mylabelcolormap)
+    seg_layer_data, quitloop_flag = mynaparifunction(display_image, img_seg0_tile, mylabelcolormap, title=str_windowtitle)
         
     if quitloop_flag:
         return quitloop_flag
