@@ -5,9 +5,10 @@
 # - train the segmentation model
 # - save checkpoints and quality-control plots
 
+import cheeky_cells  
+
 from dataclasses import dataclass
 import os
-import sys
 import time
 
 import numpy as np

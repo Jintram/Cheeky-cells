@@ -28,8 +28,8 @@ import cheeky_cells.plotting.plotting as pp
 
 # dataset spcecific config
 CURRENT_MODEL = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/models/modelUNet20251026_1027.pth'
-DATA_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/Originals/'
-OUTPUT_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/model_seg/'
+DATA_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/TRAINING_202603/images for annotation/'
+OUTPUT_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/model_seg_202604/'
 
 # Now initialize a configuration
 # The flag "save_images=True" generates additional output data.
