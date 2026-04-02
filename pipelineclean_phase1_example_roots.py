@@ -51,7 +51,7 @@ o1.phase1_setup(config1)
 # (and rename it to avoid overwriting behavior).
 # Set the path to the metadata file below
 METADATA_FILE = \
-    "/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/model_seg_20260331/metadata_imagefiles_autogen.xlsx"
+    config1.outputdirectory + "metadata_imagefiles_autogen.xlsx"
 
 # Update config1 accordingly
 config1.metadatafiles_path = METADATA_FILE
