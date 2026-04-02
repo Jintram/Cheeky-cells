@@ -7,6 +7,7 @@ for training and testing purposes.
 # Libraries
 
 import sys
+import os
 
 import cheeky_cells.orchestrators.orchestrate_phase1_clean as o1
     # import importlib; importlib.reload(o1)
@@ -40,7 +41,10 @@ config1 = o1.Phase1Config(
 )
 
 # to plug in model output (manually rename 'segfiles' first)
-# config1.segfolder = os.path.join(config1.outputdirectory, 'segfiles_humancorr/')
+# COMMENT THIS OUT IF YOU DON'T HAVE ALREADY SEGMENTED DATA
+# THE DIRECTORY segfiles_humancorr SHOULD BE MANUALLY CREATED
+# SEE: documentation/use-segresults-newtraining.md
+config1.segfolder = os.path.join(config1.outputdirectory, 'segfiles_humancorr/')
 
 o1.phase1_setup(config1)
 
