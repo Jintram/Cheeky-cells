@@ -200,29 +200,41 @@ def annothelp_tile_and_segment(img_toseg, img_annot=None, TILE_SIZE=2000, segfn=
             # plt.imshow(current_tile_rescaledgrey); plt.show()
             
         # apply custom seg function
-        if rescalegrey:
-            img_segmaskauto = segfn(current_tile_rescaledgrey)
-        else:
-            img_segmaskauto = segfn(tiles[idx_tile_sel])
-        
-        # remove small objects 
-        img_seg0_tile = remove_small_objects(img_segmaskauto, min_size=20**2)
-        
-        if showplots:
-            fig, ax = plt.subplots(1, 2, figsize=(10*cm_to_inch, 5*cm_to_inch))
-            ax[0].imshow(current_tile_rescaled)
-            # ax[0].contour(img_segmaskauto, levels=[0.5], colors='red')
-            #ax[1].imshow(tiles[idx_tile_sel])
-            #ax[1].contour(img_segmaskauto, levels=[0.5], colors='white')
-            ax[1].imshow(img_segmaskauto)
-            plt.tight_layout()
-            if not folder_devplots is None:
-                plt.savefig(os.path.join(folder_devplots, 'tile_and_autoannotation.pdf'), dpi=300)
-            else:
-                plt.show(); plt.close()
-    else:
-        img_seg0_tile = tiles_annot[idx_tile_sel]
+        if segfn is not None:
             
+            # Apply segfunction
+            if rescalegrey:
+                img_segmaskauto = segfn(current_tile_rescaledgrey)
+            else:
+                img_segmaskauto = segfn(tiles[idx_tile_sel])
+                
+            # remove small objects 
+            img_seg0_tile = remove_small_objects(img_segmaskauto, min_size=20**2)
+                        
+            # Show result of img_segmaskauto
+            if showplots:
+                fig, ax = plt.subplots(1, 2, figsize=(10*cm_to_inch, 5*cm_to_inch))
+                ax[0].imshow(current_tile_rescaled)
+                # ax[0].contour(img_segmaskauto, levels=[0.5], colors='red')
+                #ax[1].imshow(tiles[idx_tile_sel])
+                #ax[1].contour(img_segmaskauto, levels=[0.5], colors='white')
+                ax[1].imshow(img_segmaskauto)
+                plt.tight_layout()
+                if not folder_devplots is None:
+                    plt.savefig(os.path.join(folder_devplots, 'tile_and_autoannotation.pdf'), dpi=300)
+                else:
+                    plt.show(); plt.close()
+                    
+        else:
+            # If explicitly no seg fn is given, set zero mask
+            img_seg0_tile = np.zeros(tiles[idx_tile_sel].shape[:2], dtype=np.uint16)
+            print(f"Created empty label layer, shape={img_seg0_tile.shape}, dtype={img_seg0_tile.dtype}")
+            
+    else:
+        
+        # Otherwise, use the desired segmentation
+        img_seg0_tile = tiles_annot[idx_tile_sel]   
+                 
     if showedgepic:
         # edge image from the local normalization
         fig, ax = plt.subplots(1, 1, figsize=(5*cm_to_inch, 5*cm_to_inch))
@@ -248,6 +260,7 @@ def edit_annotation_napari(image, segmentation, mylabelcolormap=None, title='Edi
     where `seg_data` is the edited annotation (or None if quit) and `quitloop_flag`
     is True if the user pressed 'q'.
     '''
+    
     quitloop_flag = False
 
     viewer = napari.Viewer(title=title)

@@ -336,11 +336,17 @@ def loadsegfile_metadata(df_metadata, file_idx, segfolder, suffix='_seg', silenc
         print('Looking for', filename.replace(filename_extension, suffix+'.npy'), ',', 
                              filename.replace(filename_extension, suffix+'.tif'))
     filepath_npy = os.path.join(segfolder, filename.replace(filename_extension, suffix+'.npy'))
+    # filepath_npz = os.path.join(segfolder, filename.replace(filename_extension, suffix+'.npz'))
     filepath_tif = os.path.join(segfolder, filename.replace(filename_extension, suffix+'.tif'))
     
+    # if os.path.exists(filepath_npy) and os.path.exists(filepath_npz):
+    #     raise ValueError("Both .npy and .npz seg files found for this image. Please remove one of them.")
+        
     # Load the file
     if os.path.exists(filepath_npy):
         img_annot = np.load(filepath_npy)
+    # elif os.path.exists(filepath_npz):
+    #     img_annot = np.load(filepath_npz)['image']
     elif os.path.exists(filepath_tif):
         img_annot = skio.imread(filepath_tif)
         
