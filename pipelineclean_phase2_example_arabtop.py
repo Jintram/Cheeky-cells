@@ -20,14 +20,10 @@ config2 = o2.Phase2Config(
     nr_classes = 3,
     img_suffix = '_tile_img_enhanced',
     lbl_suffix = '_tile_seg',
-    artificial_n = 1000,
-    crop_size = 1000,
     learning_rate = 1e-3,
     batch_size = 8,
-    epochs = 24,
-    lr_schedule_step_len = 8,
-    model_checkpoint_to_load = None,
-    n_examples_to_plot = 10,
+    artificial_n = 1000, # lower this during tests
+    epochs = 24
 )
 
 # %% ###########################################################################

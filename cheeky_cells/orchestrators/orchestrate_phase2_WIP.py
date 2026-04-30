@@ -20,24 +20,32 @@ from matplotlib.colors import ListedColormap
 from torch.utils.data import DataLoader
 from torch.optim.lr_scheduler import LambdaLR
 
+# custom modules
+from cheeky_cells.machine_learning.datasetclass import dataset_classes as cdc
+from cheeky_cells.machine_learning.model import unet_model as cunet
+from cheeky_cells.machine_learning.trainer import trainer as ct
+
 
 # %% ################################################################################
 # Phase 2 configuration container (isolated)
 
 @dataclass
 class Phase2Config:
-    # Root directory of this repository
-    script_dir: str = os.path.dirname(os.path.abspath(__file__))
 
     # Main output directory used by this phase
-    outputdirectory: str = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/'
+    outputdirectory: str 
 
     # Input metadata used for train/test split of tiles
-    metadata_customized_filename: str = 'metadata_imagefiles_manual20251022.xlsx'
+    metadata_customized_filename: str 
+
+    # Output (sub)folders
+    segfolder: str = 'humanseg/'
+    modelfolder: str = 'models/'
+    pltfolder: str = 'plots/'
 
     # Device and model setup
     target_device: str = 'mps'
-    nr_classes: int = 5
+    nr_classes: int
 
     # Dataset settings
     img_suffix: str = '_tile_img_enhanced'
@@ -62,41 +70,9 @@ class Phase2Config:
 # Phase 2 helpers
 
 
-def get_output_paths(config: Phase2Config) -> dict:
-    # Build output folders used in this phase
-    return {
-        'segfolder': os.path.join(config.outputdirectory, 'humanseg/'),
-        'modelfolder': os.path.join(config.outputdirectory, 'models/'),
-        'pltfolder': os.path.join(config.outputdirectory, 'plots/'),
-    }
 
 
-def ensure_output_dirs(paths: dict) -> None:
-    # Ensure output directories exist
-    os.makedirs(paths['segfolder'], exist_ok=True)
-    os.makedirs(paths['modelfolder'], exist_ok=True)
-    os.makedirs(paths['pltfolder'], exist_ok=True)
 
-
-def add_script_dir_to_path(script_dir: str) -> None:
-    # No longer needed — cheeky_cells is installed as a package.
-    pass
-
-
-def resolve_device(requested_device: str) -> str:
-    # Keep mps default but fall back to cpu when needed
-    if requested_device == 'mps' and torch.backends.mps.is_available():
-        return 'mps'
-    return 'cpu'
-
-
-def import_custom_modules_phase2():
-    # Import only modules needed for phase 2
-    from cheeky_cells.machine_learning.datasetclass import dataset_classes as cdc
-    from cheeky_cells.machine_learning.model import unet_model as cunet
-    from cheeky_cells.machine_learning.trainer import trainer as ct
-
-    return cdc, cunet, ct
 
 
 def get_plant_cmap() -> ListedColormap:
@@ -158,25 +134,21 @@ def overlayplot(current_img_rgb, current_prd, current_lbl, plot_name: str, pltfo
     plt.close()
 
 
-def load_training_metadata(config: Phase2Config) -> pd.DataFrame:
-    # Load metadata used for train/test split
-    metadata_filepath = os.path.join(config.outputdirectory, config.metadata_customized_filename)
-    return pd.read_excel(metadata_filepath)
 
 
-def build_train_test_datasets(df_metadata: pd.DataFrame, config: Phase2Config, output_paths: dict, cdc):
+def build_train_test_datasets(df_metadata: pd.DataFrame, config2: Phase2Config, output_paths: dict, cdc):
     # Build train dataset
     dataset_train = cdc.ImageDataset_tiles(
         df_metadata,
         output_paths['segfolder'],
         'train',
-        img_suffix=config.img_suffix,
-        lbl_suffix=config.lbl_suffix,
+        img_suffix=config2.img_suffix,
+        lbl_suffix=config2.lbl_suffix,
         transform=cdc.augmentation_pipeline_input,
         transform_label=cdc.augmentation_pipeline_label,
-        targetdevice=config.target_device,
-        ARTIFICIAL_N=config.artificial_n,
-        CROP_SIZE=config.crop_size,
+        targetdevice=config2.target_device,
+        ARTIFICIAL_N=config2.artificial_n,
+        CROP_SIZE=config2.crop_size,
     )
 
     # Build test dataset
@@ -184,21 +156,21 @@ def build_train_test_datasets(df_metadata: pd.DataFrame, config: Phase2Config, o
         df_metadata,
         output_paths['segfolder'],
         'test',
-        img_suffix=config.img_suffix,
-        lbl_suffix=config.lbl_suffix,
+        img_suffix=config2.img_suffix,
+        lbl_suffix=config2.lbl_suffix,
         transform=cdc.augmentation_pipeline_input,
         transform_label=cdc.augmentation_pipeline_label,
-        targetdevice=config.target_device,
-        ARTIFICIAL_N=config.artificial_n,
-        CROP_SIZE=config.crop_size,
+        targetdevice=config2.target_device,
+        ARTIFICIAL_N=config2.artificial_n,
+        CROP_SIZE=config2.crop_size,
     )
 
     return dataset_train, dataset_test
 
 
-def initialize_unet_model(config: Phase2Config, cunet):
+def initialize_unet_model(config2: Phase2Config, cunet):
     # Initialize U-net model
-    return cunet.UNet(n_channels=3, n_classes=config.nr_classes).to(config.target_device)
+    return cunet.UNet(n_channels=3, n_classes=config2.nr_classes).to(config2.target_device)
 
 
 def custom_lr_schedule(epoch: int, step_len: int = 50):
@@ -209,22 +181,22 @@ def custom_lr_schedule(epoch: int, step_len: int = 50):
     return lr_scalefactor[epoch]
 
 
-def train_model(dataset_train, dataset_test, model_unet, config: Phase2Config, cdc, ct):
+def train_model(dataset_train, dataset_test, model_unet, config2: Phase2Config, cdc, ct):
     # Build weighted loss from label distribution
-    label_weights = cdc.get_label_weights(dataset_train, suffix_img=config.img_suffix, suffix_lbl=config.lbl_suffix)
+    label_weights = cdc.get_label_weights(dataset_train, suffix_img=config2.img_suffix, suffix_lbl=config2.lbl_suffix)
     loss_fn = torch.nn.CrossEntropyLoss(label_weights)
 
     # Build optimizer
-    optimizer = torch.optim.Adam(model_unet.parameters(), config.learning_rate)
+    optimizer = torch.optim.Adam(model_unet.parameters(), config2.learning_rate)
 
     # Build data loaders
-    train_loader = DataLoader(dataset_train, batch_size=config.batch_size, shuffle=True)
-    val_loader = DataLoader(dataset_test, batch_size=config.batch_size, shuffle=True)
+    train_loader = DataLoader(dataset_train, batch_size=config2.batch_size, shuffle=True)
+    val_loader = DataLoader(dataset_test, batch_size=config2.batch_size, shuffle=True)
 
     # Build scheduler
     scheduler = LambdaLR(
         optimizer,
-        lr_lambda=lambda epoch: custom_lr_schedule(epoch, step_len=config.lr_schedule_step_len),
+        lr_lambda=lambda epoch: custom_lr_schedule(epoch, step_len=config2.lr_schedule_step_len),
     )
 
     # Run training and validation loops
@@ -232,7 +204,7 @@ def train_model(dataset_train, dataset_test, model_unet, config: Phase2Config, c
     list_correct = []
     start_time_overall = time.time()
 
-    for epoch_idx in range(config.epochs):
+    for epoch_idx in range(config2.epochs):
         print('=' * 30)
         print(f"Epoch {epoch_idx + 1}, LR: {scheduler.get_last_lr()}")
         start_time = time.time()
@@ -243,14 +215,14 @@ def train_model(dataset_train, dataset_test, model_unet, config: Phase2Config, c
             loss_fn,
             optimizer,
             len(dataset_train),
-            config.batch_size,
+            config2.batch_size,
         )
         current_correct = ct.test_loop(
             val_loader,
             model_unet,
             loss_fn,
             len(dataset_test),
-            config.batch_size,
+            config2.batch_size,
         )
 
         scheduler.step()
@@ -330,38 +302,36 @@ def evaluate_on_tiles_and_plot(model_unet, dataset_train, dataset_test, output_p
 # Phase 2 runner
 
 
-def run_phase2_pipeline(config: Phase2Config) -> str:
-    # Prepare path and outputs
-    add_script_dir_to_path(config.script_dir)
-    output_paths = get_output_paths(config)
-    ensure_output_dirs(output_paths)
+def run_phase2_pipeline(config2: Phase2Config) -> str:
 
-    # Resolve and print actual device
-    config.target_device = resolve_device(config.target_device)
-    print(f'Using target device: {config.target_device}')
-
-    # Import custom modules
-    cdc, cunet, ct = import_custom_modules_phase2()
-
+    # Set up subdirs for output    
+    config2.segfolder = os.path.join(config2.outputdirectory, 'humanseg/')
+    config2.modelfolder = os.path.join(config2.outputdirectory, 'models/')
+    config2.pltfolder = os.path.join(config2.outputdirectory, 'plots/')
+    [os.makedirs(pth) for pth in [config2.segfolder, config2.modelfolder, config2.pltfolder] if not os.path.exists(pth)]
+    
     # Load metadata
-    df_metadata = load_training_metadata(config)
+    df_metadata = pd.read_excel(os.path.join(config2.outputdirectory, config2.metadata_customized_filename))
+
+    XXXXXX !!!! I WAS EDITING HERE !!!! XXXXXX 
+    CONTINUE WITH REMOVING LLM FLUFF
 
     # Build datasets
-    dataset_train, dataset_test = build_train_test_datasets(df_metadata, config, output_paths, cdc)
+    dataset_train, dataset_test = build_train_test_datasets(df_metadata, config2, output_paths)
 
     # Initialize model
-    model_unet = initialize_unet_model(config, cunet)
+    model_unet = initialize_unet_model(config2, cunet)
 
     # Optionally load checkpoint before further training
-    if config.model_checkpoint_to_load is not None:
-        model_unet = load_model_checkpoint(model_unet, config.model_checkpoint_to_load)
+    if config2.model_checkpoint_to_load is not None:
+        model_unet = load_model_checkpoint(model_unet, config2.model_checkpoint_to_load)
 
     # Train model
     model_unet, list_loss_tracker, list_correct = train_model(
         dataset_train,
         dataset_test,
         model_unet,
-        config,
+        config2,
         cdc,
         ct,
     )
@@ -371,7 +341,7 @@ def run_phase2_pipeline(config: Phase2Config) -> str:
     print(f'Saved checkpoint: {saved_model_path}')
 
     # Plot training history
-    plot_training_history(list_loss_tracker, list_correct, config.epochs)
+    plot_training_history(list_loss_tracker, list_correct, config2.epochs)
 
     # Plot prediction quality
     cmap_plantclasses = get_plant_cmap()
@@ -381,7 +351,7 @@ def run_phase2_pipeline(config: Phase2Config) -> str:
         dataset_test,
         output_paths,
         cmap_plantclasses,
-        n_examples=config.n_examples_to_plot,
+        n_examples=config2.n_examples_to_plot,
     )
 
     return saved_model_path
@@ -391,5 +361,5 @@ def run_phase2_pipeline(config: Phase2Config) -> str:
 # Execute phase 2 directly
 
 if __name__ == '__main__':
-    default_config = Phase2Config()
-    run_phase2_pipeline(default_config)
+    default_config2 = Phase2Config()
+    run_phase2_pipeline(default_config2)
