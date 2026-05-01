@@ -294,6 +294,7 @@ def initialize_unet_model(config2: Phase2Config, cunet):
 
 
 def custom_lr_schedule(epoch: int, step_len: int = 50):
+    
     # Define piecewise LR scaling schedule
     lr_scalefactor = [1] * step_len + [0.1] * step_len + [0.01] * step_len
     if epoch >= step_len * 3:
