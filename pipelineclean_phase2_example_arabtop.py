@@ -6,7 +6,7 @@ a U-Net segmentation model.
 # %% ###########################################################################
 # Libraries
 
-import cheeky_cells.orchestrators.orchestrate_phase2_WIP as o2
+import cheeky_cells.orchestrators.orchestrate_phase2_clean as o2
     # import importlib; importlib.reload(o2)
 
 
