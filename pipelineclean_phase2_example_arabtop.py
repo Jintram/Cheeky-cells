@@ -44,6 +44,7 @@ dataset_train, dataset_test, model_unet = o2.phase2_setup(config2)
 # %% ###########################################################################
 # Running it
 
-saved_model_path = o2.run_phase2_pipeline(config2)
+saved_model_path = o2.phase2_train(config2, dataset_train, dataset_test, model_unet)
 print(f'Model saved to: {saved_model_path}')
+
 # %%

@@ -83,6 +83,10 @@ class Phase2Config:
     cmap_custom: dict = None # for napari
     cmap_custom_mpl: ListedColormap = None # for matplotlib
     
+    # For saving (auto-filled)
+    model_timestamp: str = None
+    timedelta: str = ""
+    
     def __post_init__(self):
         # (__post_init__ is automatically run after the dataclass is initialized, 
         # leaving original __init__ in place.)
@@ -103,25 +107,25 @@ class Phase2Config:
 # Phase 2 plotting related functions
 
 
-def plot_sidebyside(current_img_rgb, current_prd, current_lbl, plot_name: str, pltfolder: str, cmap_plantclasses) -> None:
+def plot_sidebyside(config2, current_img_rgb, current_prd, current_lbl, plot_name):
     # pltfolder =  config2.pltfolder;  cmap_plantclasses = config2.cmap_custom_mpl
     
     # Save input / prediction / truth side-by-side figure
     cm_to_inch = 1 / 2.54
     fig, ax = plt.subplots(1, 3, figsize=(15 * cm_to_inch, 5 * cm_to_inch))
     ax[0].imshow(current_img_rgb)
-    ax[1].imshow(current_prd[0].argmax(0), cmap=cmap_plantclasses) #, vmin=0, vmax=5)
-    ax[2].imshow(current_lbl, cmap=cmap_plantclasses, vmin=0, vmax=np.max(current_lbl))
-    plt.imshow(current_lbl, cmap=cmap_plantclasses)#, vmin=0, vmax=np.max(current_lbl))
+    ax[1].imshow(current_prd[0].argmax(0), cmap=config2.cmap_custom_mpl) #, vmin=0, vmax=5)
+    ax[2].imshow(current_lbl, cmap=config2.cmap_custom_mpl, vmin=0, vmax=np.max(current_lbl))
+    plt.imshow(current_lbl, cmap=config2.cmap_custom_mpl)#, vmin=0, vmax=np.max(current_lbl))
     for idx_ax in range(3):
         ax[idx_ax].set_xticks([])
         ax[idx_ax].set_yticks([])
     plt.tight_layout()
-    plt.savefig(os.path.join(pltfolder, f'prediction_{plot_name}.pdf'), dpi=300)
+    plt.savefig(os.path.join(config2.pltfolder, f'{config2.model_timestamp}_prediction_{plot_name}.pdf'), dpi=300)
     plt.close()
 
 
-def plot_overlay(current_img_rgb, current_prd, current_lbl, plot_name: str, pltfolder: str, cmap_plantclasses) -> None:
+def plot_overlay(config2, current_img_rgb, current_prd, current_lbl, plot_name):
     
     # Save overlay figure with predicted labels over input
     if current_prd.ndim > 2:
@@ -136,21 +140,21 @@ def plot_overlay(current_img_rgb, current_prd, current_lbl, plot_name: str, pltf
     if current_lbl is None:
         fig, ax = plt.subplots(1, 1, figsize=(10 * img_shape_ratio * cm_to_inch, 10 * cm_to_inch))
         ax.imshow(current_img_rgb)
-        ax.imshow(current_pred_lbl_transl, cmap=cmap_plantclasses, vmin=0, vmax=5, alpha=1.0 * (current_pred_lbl_transl > 0))
+        ax.imshow(current_pred_lbl_transl, cmap=config2.cmap_custom_mpl, vmin=0, vmax=5, alpha=1.0 * (current_pred_lbl_transl > 0))
         ax.set_xticks([])
         ax.set_yticks([])
     else:
         fig, ax = plt.subplots(1, 2, figsize=((5 * img_shape_ratio + 5) * cm_to_inch, 5 * cm_to_inch))
         ax[0].imshow(current_img_rgb)
-        ax[0].imshow(current_pred_lbl_transl, cmap=cmap_plantclasses, vmin=0, vmax=5, alpha=1.0 * (current_pred_lbl_transl > 0))
-        ax[1].imshow(current_lbl, cmap=cmap_plantclasses, vmin=0, vmax=5)
+        ax[0].imshow(current_pred_lbl_transl, cmap=config2.cmap_custom_mpl, vmin=0, vmax=5, alpha=1.0 * (current_pred_lbl_transl > 0))
+        ax[1].imshow(current_lbl, cmap=config2.cmap_custom_mpl, vmin=0, vmax=5)
         ax[0].set_xticks([])
         ax[0].set_yticks([])
         ax[1].set_xticks([])
         ax[1].set_yticks([])
 
     plt.tight_layout()
-    plt.savefig(os.path.join(pltfolder, f'predictionoverlay_{plot_name}.pdf'), dpi=300)
+    plt.savefig(os.path.join(config2.pltfolder, f'{config2.model_timestamp}_predictionoverlay_{plot_name}.pdf'), dpi=300)
     plt.close()
 
 
@@ -168,7 +172,7 @@ def plot_training_history(config2, list_loss_tracker, list_correct, list_test_lo
     # percentage correct
     data_correctx = np.linspace(datax[-1] / config2.epochs, datax[-1], config2.epochs)
     data_correcty = np.array(list_correct)
-    plt.plot(data_correctx, data_correcty, color='lightblue', label='test %correct')
+    plt.plot(data_correctx, data_correcty, color='#0a018a', label='test %correct')
     # loss function
     if list_test_loss_tracker is not None:
         plt.plot(data_correctx, list_test_loss_tracker, linestyle=':', color='black', label='test loss')
@@ -181,8 +185,9 @@ def plot_training_history(config2, list_loss_tracker, list_correct, list_test_lo
 
     # Save figure
     plt.tight_layout()
-    plt.savefig(os.path.join(config2.pltfolder, f'traininghistory.pdf'), dpi=300)
+    plt.savefig(os.path.join(config2.pltfolder, f'{config2.model_timestamp}_traininghistory.pdf'), dpi=300)
     plt.close()
+
 
 def plot_overlay_contour(config2, image, label):
     
@@ -239,10 +244,12 @@ def plot_dataset(config2, dataset, prefix=""):
 
         fig = plot_overlay_contour(config2, image, label)
 
-        plt.savefig(os.path.join(config2.pltfolder, f'plot-{prefix}_{filename_img}.pdf'), dpi=600)        
+        plt.savefig(os.path.join(config2.pltfolder, f'{config2.model_timestamp}_plot-{prefix}_{filename_img}.pdf'), dpi=600)        
         plt.close(fig)
-                       
-
+         
+    
+    
+    
 
 
 ################################################################################
@@ -296,6 +303,9 @@ def custom_lr_schedule(epoch: int, step_len: int = 50):
 
 def train_model(config2, dataset_train, dataset_test, model_unet):
     
+    # Set a timestamp for this training session
+    config2.model_timestamp = time.strftime('%Y%m%d_%H%M')
+    
     # Build weighted loss from label distribution
     label_weights = cdc.get_label_weights(dataset_train, suffix_img=config2.img_suffix, suffix_lbl=config2.lbl_suffix)
     loss_fn = torch.nn.CrossEntropyLoss(label_weights)
@@ -347,21 +357,40 @@ def train_model(config2, dataset_train, dataset_test, model_unet):
         elapsed_time = time.strftime('%Hh:%Mm:%Ss', time.gmtime(time.time() - start_time))
         print(f"Epoch {epoch_idx + 1} completed in {elapsed_time}..")
 
-    elapsed_time_overall = time.strftime('%Hh:%Mm:%Ss', time.gmtime(time.time() - start_time_overall))
+    config2.timedelta = (time.time() - start_time_overall)
+    elapsed_time_overall = time.strftime('%Hh:%Mm:%Ss', time.gmtime(config2.timedelta))
     print(f'Training completed in {elapsed_time_overall}..')
     print('Done!')
+    
 
-    return model_unet, list_loss_tracker, list_correct, list_test_loss_tracker
+    return model_unet, config2, list_loss_tracker, list_correct, list_test_loss_tracker
 
 
-def save_model_checkpoint(model_unet, output_paths: dict) -> str:
-    # Save model with a timestamped filename
-    current_time_formatted = time.strftime('%Y%m%d_%H%M')
-    output_path = os.path.join(output_paths['modelfolder'], f'modelUNet{current_time_formatted}.pth')
+def save_model_checkpoint(config2, model_unet, model_stats = None):
+    
+    # Set up timestamped filename
+    # config2.model_timestamp = time.strftime('%Y%m%d_%H%M')    
+    # format in HH:MM
+    timedelta_str = time.strftime('%Hh%Mm', time.gmtime(config2.timedelta))
+    output_path = os.path.join(config2.modelfolder, f'modelUNet{config2.model_timestamp}__trained{timedelta_str}.pth')
+    
+    # Save model parameters (ie "the model")
     torch.save(model_unet.state_dict(), output_path)
+
+    # Save model stats
+    if model_stats is not None:
+        np.savez(
+            os.path.join(config2.modelfolder, f'modelUNet{config2.model_timestamp}_stats.npz'), 
+            **model_stats
+        )
+    
+    # Save the settings
+    np.save(
+        os.path.join(config2.modelfolder, f'modelUNet{config2.model_timestamp}_config.npy'), 
+        config2
+        )
+    
     return output_path
-
-
 
 
 def evaluate_on_tiles_and_plot(config2, model_unet, dataset_train, dataset_test, n_examples: int = 10):
@@ -389,12 +418,12 @@ def evaluate_on_tiles_and_plot(config2, model_unet, dataset_train, dataset_test,
             print(f'Accuracy for {whichone} image {idx}: {accuracy * 100:.2f} %')
 
             plot_name = f'{whichone}_{idx:03d}'
-            plot_sidebyside(current_img_rgb, current_prd, current_lbl, plot_name, config2.pltfolder, config2.cmap_custom_mpl)
-            plot_overlay(current_img_rgb, current_prd, current_lbl, plot_name, config2.pltfolder, config2.cmap_custom_mpl)
+            plot_sidebyside(config2, current_img_rgb, current_prd, current_lbl, plot_name)
+            plot_overlay(config2, current_img_rgb, current_prd, current_lbl, plot_name)
             
             # Overlay plot 2
             fig = plot_overlay_contour2(config2, current_img_rgb, current_prd[0].argmax(0), current_lbl)
-            plt.savefig(os.path.join(config2.pltfolder, f'predictionoverlay2_{plot_name}.pdf'), dpi=600)
+            plt.savefig(os.path.join(config2.pltfolder, f'{config2.model_timestamp}_predictionoverlay2_{plot_name}.pdf'), dpi=600)
             plt.close(fig)
 
 
@@ -422,7 +451,7 @@ def phase2_setup(config2: Phase2Config) -> str:
 def phase2_train(config2, dataset_train, dataset_test, model_unet):
 
     # Train model
-    model_unet, list_loss_tracker, list_correct, list_test_loss_tracker = \
+    model_unet, config2, list_loss_tracker, list_correct, list_test_loss_tracker = \
         train_model(
             config2,
             dataset_train,
@@ -430,8 +459,17 @@ def phase2_train(config2, dataset_train, dataset_test, model_unet):
             model_unet        
         )
 
-    # Save checkpoint
-    saved_model_path = save_model_checkpoint(model_unet, output_paths)
+    # Save the model
+    saved_model_path = save_model_checkpoint(
+                            # save model
+                            config2, model_unet,
+                            # optional, also save stats for this model
+                            model_stats={
+                                'list_loss_tracker': list_loss_tracker,
+                                'list_correct': list_correct,
+                                'list_test_loss_tracker': list_test_loss_tracker
+                            }
+                        )
     print(f'Saved checkpoint: {saved_model_path}')
 
     # Plot training history
@@ -445,7 +483,7 @@ def phase2_train(config2, dataset_train, dataset_test, model_unet):
         dataset_test,
         n_examples=config2.n_examples_to_plot,
     )
-
+    
     return saved_model_path
 
 
@@ -453,5 +491,5 @@ def phase2_train(config2, dataset_train, dataset_test, model_unet):
 # Execute phase 2 directly
 
 if __name__ == '__main__':
-    default_config2 = Phase2Config()
-    run_phase2_pipeline(default_config2)
+    
+    pass
