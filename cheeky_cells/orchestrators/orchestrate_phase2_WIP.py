@@ -24,10 +24,26 @@ from torch.optim.lr_scheduler import LambdaLR
 from cheeky_cells.machine_learning.datasetclass import dataset_classes as cdc
 from cheeky_cells.machine_learning.model import unet_model as cunet
 from cheeky_cells.machine_learning.trainer import trainer as ct
+    # import importlib; importlib.reload(ct)
 
 
 # %% ################################################################################
 # Phase 2 configuration container (isolated)
+
+def naparicmap_to_mplcmap(cmap_custom, nr_classes=None):
+    """ Convert Napari cmap color dict to matplotlib listedcolormap. """
+    # cmap_custom=config2.cmap_custom; nr_classes = config2.nr_classes
+    
+    # Convert transparent/none to black
+    NAPARI_TO_MPL = {'transparent': (0, 0, 0, 1), 'none': (0, 0, 0, 1)}
+    
+    # Convert (sorted to ensure correct label order)
+    colors = [NAPARI_TO_MPL.get(cmap_custom[k], cmap_custom[k]) for k in sorted(cmap_custom)]
+    
+    # match nr. of colors with nr. of classes, if nr. classes given
+    max_lvls = np.min([len(colors), nr_classes])
+    
+    return ListedColormap(colors[:(max_lvls)])
 
 @dataclass
 class Phase2Config:
@@ -38,14 +54,14 @@ class Phase2Config:
     # Input metadata used for train/test split of tiles
     metadata_customized_filename: str 
 
-    # Output (sub)folders
-    segfolder: str = 'humanseg/'
-    modelfolder: str = 'models/'
-    pltfolder: str = 'plots/'
-
-    # Device and model setup
-    target_device: str = 'mps'
+    # Device and model setup    
     nr_classes: int
+    target_device: str = 'mps'
+
+    # Output (sub)folders
+    segfolder: str = None # defaults to 'humanseg/' during setup
+    modelfolder: str = None # defaults to 'models/' during setup 
+    pltfolder: str = None # defaults to 'plots_training/' during setup
 
     # Dataset settings
     img_suffix: str = '_tile_img_enhanced'
@@ -64,36 +80,39 @@ class Phase2Config:
 
     # Plotting settings
     n_examples_to_plot: int = 10
+    cmap_custom: dict = None # for napari
+    cmap_custom_mpl: ListedColormap = None # for matplotlib
+    
+    def __post_init__(self):
+        # (__post_init__ is automatically run after the dataclass is initialized, 
+        # leaving original __init__ in place.)
+            
+        # Set up subdirs for input/output    
+        self.segfolder = os.path.join(self.outputdirectory, 'humanseg/')
+        self.modelfolder = os.path.join(self.outputdirectory, 'models/')
+        self.pltfolder = os.path.join(self.outputdirectory, 'plots_training/')
+        os.makedirs(self.segfolder, exist_ok=True)
+        os.makedirs(self.modelfolder, exist_ok=True)
+        os.makedirs(self.pltfolder, exist_ok=True)
+
+        # Convert Napari cmap to matplotlib cmap
+        self.cmap_custom_mpl = naparicmap_to_mplcmap(self.cmap_custom, self.nr_classes)
 
 
 # %% ################################################################################
-# Phase 2 helpers
+# Phase 2 plotting related functions
 
 
-
-
-
-
-
-def get_plant_cmap() -> ListedColormap:
-    # Class colors for prediction plots
-    custom_colors_plantclasses = [
-        '#000000',
-        '#90EE90',
-        '#FFFFFF',
-        '#A52A2A',
-        '#006400',
-    ]
-    return ListedColormap(custom_colors_plantclasses)
-
-
-def sidebysideplot(current_img_rgb, current_prd, current_lbl, plot_name: str, pltfolder: str, cmap_plantclasses) -> None:
+def plot_sidebyside(current_img_rgb, current_prd, current_lbl, plot_name: str, pltfolder: str, cmap_plantclasses) -> None:
+    # pltfolder =  config2.pltfolder;  cmap_plantclasses = config2.cmap_custom_mpl
+    
     # Save input / prediction / truth side-by-side figure
     cm_to_inch = 1 / 2.54
     fig, ax = plt.subplots(1, 3, figsize=(15 * cm_to_inch, 5 * cm_to_inch))
     ax[0].imshow(current_img_rgb)
-    ax[1].imshow(current_prd[0].argmax(0), cmap=cmap_plantclasses, vmin=0, vmax=5)
-    ax[2].imshow(current_lbl, cmap=cmap_plantclasses, vmin=0, vmax=5)
+    ax[1].imshow(current_prd[0].argmax(0), cmap=cmap_plantclasses) #, vmin=0, vmax=5)
+    ax[2].imshow(current_lbl, cmap=cmap_plantclasses, vmin=0, vmax=np.max(current_lbl))
+    plt.imshow(current_lbl, cmap=cmap_plantclasses)#, vmin=0, vmax=np.max(current_lbl))
     for idx_ax in range(3):
         ax[idx_ax].set_xticks([])
         ax[idx_ax].set_yticks([])
@@ -102,7 +121,8 @@ def sidebysideplot(current_img_rgb, current_prd, current_lbl, plot_name: str, pl
     plt.close()
 
 
-def overlayplot(current_img_rgb, current_prd, current_lbl, plot_name: str, pltfolder: str, cmap_plantclasses) -> None:
+def plot_overlay(current_img_rgb, current_prd, current_lbl, plot_name: str, pltfolder: str, cmap_plantclasses) -> None:
+    
     # Save overlay figure with predicted labels over input
     if current_prd.ndim > 2:
         current_pred_lbl = current_prd[0].argmax(0)
@@ -134,13 +154,106 @@ def overlayplot(current_img_rgb, current_prd, current_lbl, plot_name: str, pltfo
     plt.close()
 
 
+def plot_training_history(config2, list_loss_tracker, list_correct, list_test_loss_tracker=None):
+    
+    # Plot batch-wise loss trace
+    datay = np.array(list_loss_tracker).flatten()
+    datax = np.array(range(len(datay))) * 100
+    plt.plot(datax, datay, color='black', label='Train loss')
+    plt.ylim([0, np.max(datay) * 1.1])
+    plt.axvline(datax[-1] / 3, linestyle='--', color='black')
+    plt.axvline(datax[-1] / 3 * 2, linestyle='--', color='black')
+
+    # Plot epoch-wise validation metric
+    # percentage correct
+    data_correctx = np.linspace(datax[-1] / config2.epochs, datax[-1], config2.epochs)
+    data_correcty = np.array(list_correct)
+    plt.plot(data_correctx, data_correcty, color='lightblue', label='test %correct')
+    # loss function
+    if list_test_loss_tracker is not None:
+        plt.plot(data_correctx, list_test_loss_tracker, linestyle=':', color='black', label='test loss')
+
+    plt.xlabel('Batch')
+    plt.ylabel('Loss / Accuracy')
+    plt.ylim([0,1])
+    # legend
+    plt.legend(loc='upper right')
+
+    # Save figure
+    plt.tight_layout()
+    plt.savefig(os.path.join(config2.pltfolder, f'traininghistory.pdf'), dpi=300)
+    plt.close()
+
+def plot_overlay_contour(config2, image, label):
+    
+    fig, axs = plt.subplots(1,2, figsize=(10/2.54,5/2.54))
+    _ = axs[0].imshow(image)
+    _ = axs[1].imshow(image)
+    #_ = axs[1].imshow(label, alpha=(label>0)*.5)
+    _ = axs[1].contour(label, levels=(np.max(label)),
+                    cmap=config2.cmap_custom_mpl,
+                    linewidths=.15)
+    
+    # Now save this to the plot folder
+    plt.tight_layout()
+    
+    return fig
+
+def plot_overlay_contour2(config2, image, pred, label):
+    """Plots orginal image and prediction on top, truth to the side"""
+    
+    fig, axs = plt.subplots(1,2, figsize=(10/2.54,5/2.54))
+    
+    _ = axs[0].set_title("Prediction")
+    _ = axs[0].imshow(image)
+    #_ = axs[1].imshow(label, alpha=(label>0)*.5)
+    _ = axs[0].contour(pred, levels=(np.max(pred)),
+                    cmap=config2.cmap_custom_mpl,
+                    linewidths=.3)
+
+    _ = axs[1].set_title("Truth")
+    _ = axs[1].imshow(image)
+    #_ = axs[1].imshow(label, alpha=(label>0)*.5)
+    _ = axs[1].contour(label, levels=(np.max(label)),
+                    cmap=config2.cmap_custom_mpl,
+                    linewidths=.3)
+    
+    # Now save this to the plot folder
+    plt.tight_layout()
+    
+    return fig
+
+def plot_dataset(config2, dataset, prefix=""):
+    # dataset = dataset_train; prefix="train"
+    # dataset = dataset_test; prefix="test"
+    
+    for file_idx in range(len(dataset.filelist_imgs)):
+        # file_idx = 0
+        
+        filename_img = dataset.filelist_imgs[file_idx]
+        filename_lbl = dataset.filelist_labels[file_idx]
+        
+        # sample_idx, file_name = 0, dataset.filelist_imgs[0]
+        image   = np.load(dataset.datadir + filename_img, allow_pickle=True)
+        label   = np.load(dataset.datadir + filename_lbl, allow_pickle=True)
+
+        fig = plot_overlay_contour(config2, image, label)
+
+        plt.savefig(os.path.join(config2.pltfolder, f'plot-{prefix}_{filename_img}.pdf'), dpi=600)        
+        plt.close(fig)
+                       
 
 
-def build_train_test_datasets(df_metadata: pd.DataFrame, config2: Phase2Config, output_paths: dict, cdc):
+
+################################################################################
+# %% Helpers
+
+def build_train_test_datasets(df_metadata: pd.DataFrame, config2: Phase2Config):
+    
     # Build train dataset
     dataset_train = cdc.ImageDataset_tiles(
         df_metadata,
-        output_paths['segfolder'],
+        config2.segfolder,
         'train',
         img_suffix=config2.img_suffix,
         lbl_suffix=config2.lbl_suffix,
@@ -154,7 +267,7 @@ def build_train_test_datasets(df_metadata: pd.DataFrame, config2: Phase2Config, 
     # Build test dataset
     dataset_test = cdc.ImageDataset_tiles(
         df_metadata,
-        output_paths['segfolder'],
+        config2.segfolder,
         'test',
         img_suffix=config2.img_suffix,
         lbl_suffix=config2.lbl_suffix,
@@ -181,7 +294,8 @@ def custom_lr_schedule(epoch: int, step_len: int = 50):
     return lr_scalefactor[epoch]
 
 
-def train_model(dataset_train, dataset_test, model_unet, config2: Phase2Config, cdc, ct):
+def train_model(config2, dataset_train, dataset_test, model_unet):
+    
     # Build weighted loss from label distribution
     label_weights = cdc.get_label_weights(dataset_train, suffix_img=config2.img_suffix, suffix_lbl=config2.lbl_suffix)
     loss_fn = torch.nn.CrossEntropyLoss(label_weights)
@@ -201,7 +315,7 @@ def train_model(dataset_train, dataset_test, model_unet, config2: Phase2Config, 
 
     # Run training and validation loops
     list_loss_tracker = []
-    list_correct = []
+    list_correct = []; list_test_loss_tracker = []
     start_time_overall = time.time()
 
     for epoch_idx in range(config2.epochs):
@@ -217,7 +331,7 @@ def train_model(dataset_train, dataset_test, model_unet, config2: Phase2Config, 
             len(dataset_train),
             config2.batch_size,
         )
-        current_correct = ct.test_loop(
+        current_correct, current_test_loss = ct.test_loop(
             val_loader,
             model_unet,
             loss_fn,
@@ -228,6 +342,7 @@ def train_model(dataset_train, dataset_test, model_unet, config2: Phase2Config, 
         scheduler.step()
         list_loss_tracker.append(loss_tracker)
         list_correct.append(current_correct)
+        list_test_loss_tracker.append(current_test_loss)
 
         elapsed_time = time.strftime('%Hh:%Mm:%Ss', time.gmtime(time.time() - start_time))
         print(f"Epoch {epoch_idx + 1} completed in {elapsed_time}..")
@@ -236,7 +351,7 @@ def train_model(dataset_train, dataset_test, model_unet, config2: Phase2Config, 
     print(f'Training completed in {elapsed_time_overall}..')
     print('Done!')
 
-    return model_unet, list_loss_tracker, list_correct
+    return model_unet, list_loss_tracker, list_correct, list_test_loss_tracker
 
 
 def save_model_checkpoint(model_unet, output_paths: dict) -> str:
@@ -247,35 +362,15 @@ def save_model_checkpoint(model_unet, output_paths: dict) -> str:
     return output_path
 
 
-def load_model_checkpoint(model_unet, checkpoint_path: str):
-    # Load model weights from checkpoint file
-    model_unet.load_state_dict(torch.load(checkpoint_path))
-    return model_unet
 
 
-def plot_training_history(list_loss_tracker, list_correct, epochs: int) -> None:
-    # Plot batch-wise loss trace
-    datay = np.array(list_loss_tracker).flatten()
-    datax = np.array(range(len(datay))) * 100
-    plt.plot(datax, datay, color='black')
-    plt.ylim([0, np.max(datay) * 1.1])
-    plt.axvline(datax[-1] / 3, linestyle='--', color='black')
-    plt.axvline(datax[-1] / 3 * 2, linestyle='--', color='black')
-
-    # Plot epoch-wise validation metric
-    data_correctx = np.linspace(datax[-1] / epochs, datax[-1], epochs)
-    data_correcty = np.array(list_correct)
-    plt.plot(data_correctx, data_correcty)
-
-    # Show figure
-    plt.show()
-    plt.close()
-
-
-def evaluate_on_tiles_and_plot(model_unet, dataset_train, dataset_test, output_paths: dict, cmap_plantclasses, n_examples: int = 10):
+def evaluate_on_tiles_and_plot(config2, model_unet, dataset_train, dataset_test, n_examples: int = 10):
+    
     # Evaluate and save plots for train and test examples
     for whichone in ['test', 'train']:
         for idx in range(n_examples):
+            # whichone='test'; idx=0
+            
             if whichone == 'train':
                 current_img, current_lbl = dataset_train[idx]
             else:
@@ -294,63 +389,60 @@ def evaluate_on_tiles_and_plot(model_unet, dataset_train, dataset_test, output_p
             print(f'Accuracy for {whichone} image {idx}: {accuracy * 100:.2f} %')
 
             plot_name = f'{whichone}_{idx:03d}'
-            sidebysideplot(current_img_rgb, current_prd, current_lbl, plot_name, output_paths['pltfolder'], cmap_plantclasses)
-            overlayplot(current_img_rgb, current_prd, current_lbl, plot_name, output_paths['pltfolder'], cmap_plantclasses)
+            plot_sidebyside(current_img_rgb, current_prd, current_lbl, plot_name, config2.pltfolder, config2.cmap_custom_mpl)
+            plot_overlay(current_img_rgb, current_prd, current_lbl, plot_name, config2.pltfolder, config2.cmap_custom_mpl)
+            
+            # Overlay plot 2
+            fig = plot_overlay_contour2(config2, current_img_rgb, current_prd[0].argmax(0), current_lbl)
+            plt.savefig(os.path.join(config2.pltfolder, f'predictionoverlay2_{plot_name}.pdf'), dpi=600)
+            plt.close(fig)
 
 
 # %% ################################################################################
-# Phase 2 runner
+# Phase 2 runners
 
 
-def run_phase2_pipeline(config2: Phase2Config) -> str:
+def phase2_setup(config2: Phase2Config) -> str:
 
-    # Set up subdirs for output    
-    config2.segfolder = os.path.join(config2.outputdirectory, 'humanseg/')
-    config2.modelfolder = os.path.join(config2.outputdirectory, 'models/')
-    config2.pltfolder = os.path.join(config2.outputdirectory, 'plots/')
-    [os.makedirs(pth) for pth in [config2.segfolder, config2.modelfolder, config2.pltfolder] if not os.path.exists(pth)]
-    
     # Load metadata
     df_metadata = pd.read_excel(os.path.join(config2.outputdirectory, config2.metadata_customized_filename))
 
-    XXXXXX !!!! I WAS EDITING HERE !!!! XXXXXX 
-    CONTINUE WITH REMOVING LLM FLUFF
-
     # Build datasets
-    dataset_train, dataset_test = build_train_test_datasets(df_metadata, config2, output_paths)
+    dataset_train, dataset_test = build_train_test_datasets(df_metadata, config2)
 
     # Initialize model
-    model_unet = initialize_unet_model(config2, cunet)
+    model_unet = cunet.UNet(n_channels=3, n_classes=config2.nr_classes).to(config2.target_device)
 
     # Optionally load checkpoint before further training
     if config2.model_checkpoint_to_load is not None:
-        model_unet = load_model_checkpoint(model_unet, config2.model_checkpoint_to_load)
+        model_unet.load_state_dict(torch.load(config2.model_checkpoint_to_load))
+        
+    return dataset_train, dataset_test, model_unet
+
+def phase2_train(config2, dataset_train, dataset_test, model_unet):
 
     # Train model
-    model_unet, list_loss_tracker, list_correct = train_model(
-        dataset_train,
-        dataset_test,
-        model_unet,
-        config2,
-        cdc,
-        ct,
-    )
+    model_unet, list_loss_tracker, list_correct, list_test_loss_tracker = \
+        train_model(
+            config2,
+            dataset_train,
+            dataset_test,
+            model_unet        
+        )
 
     # Save checkpoint
     saved_model_path = save_model_checkpoint(model_unet, output_paths)
     print(f'Saved checkpoint: {saved_model_path}')
 
     # Plot training history
-    plot_training_history(list_loss_tracker, list_correct, config2.epochs)
+    plot_training_history(config2, list_loss_tracker, list_correct, list_test_loss_tracker)
 
     # Plot prediction quality
-    cmap_plantclasses = get_plant_cmap()
     evaluate_on_tiles_and_plot(
+        config2, 
         model_unet,
         dataset_train,
         dataset_test,
-        output_paths,
-        cmap_plantclasses,
         n_examples=config2.n_examples_to_plot,
     )
 

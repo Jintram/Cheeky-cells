@@ -8,10 +8,10 @@ def train_loop(dataloader, model, loss_fn, optimizer, dataset_len, BATCH_SIZE):
     # dataloader=train_loader; model=modelUNet
     
     loss_tracker = []
-    # Set the model to training mode - important for batch normalization and dropout layers
-    # Unnecessary in this situation but added for best practices
     
-    model.train()
+    # Set the model to training mode 
+    # (activate dropout and batchnorm)
+    model.train()    
     for batch, (X, y) in enumerate(dataloader):
         # batch = 0; (X, y) = next(iter(dataloader))
         
@@ -41,8 +41,8 @@ def test_loop(dataloader, model, loss_fn, dataset_len, BATCH_SIZE):
     # arabidopsis
     # dataloader=val_loader; model= modelUNet; dataset_len=len(dataset_test)
     
-    # Set the model to evaluation mode - important for batch normalization and dropout layers
-    # Unnecessary in this situation but added for best practices
+    # Set the model to evaluation mode 
+    # (no dropout and batchnorm)
     model.eval()
     test_loss, correct = 0, 0
     
@@ -67,4 +67,4 @@ def test_loop(dataloader, model, loss_fn, dataset_len, BATCH_SIZE):
     correct /= nr_batches
     print(f"Test Error: \n Accuracy: {(100*correct):>0.1f}%, Avg loss: {test_loss:>8f} \n")
     
-    return correct
+    return correct, test_loss
