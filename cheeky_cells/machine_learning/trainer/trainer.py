@@ -4,7 +4,7 @@ import torch
 import numpy as np
 import math 
 
-def train_loop(dataloader, model, loss_fn, optimizer, dataset_len, BATCH_SIZE):
+def train_loop(dataloader, model, loss_fn, optimizer, dataset_len, BATCH_SIZE, train_log_interval=10):
     # dataloader=train_loader; model=modelUNet
     
     loss_tracker = []
@@ -24,7 +24,7 @@ def train_loop(dataloader, model, loss_fn, optimizer, dataset_len, BATCH_SIZE):
         optimizer.step()
         optimizer.zero_grad()
 
-        if batch % 10 == 0:
+        if batch % train_log_interval == 0:
             loss, current = loss.item(), batch * BATCH_SIZE + len(X)
             loss_tracker.append(loss)
             #print(f"loss: {loss:>7f}  [{current:>5d}/{size:>5d}]")

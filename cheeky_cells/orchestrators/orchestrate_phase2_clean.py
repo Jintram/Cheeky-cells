@@ -74,6 +74,7 @@ class Phase2Config:
     batch_size: int = 8
     epochs: int = 24
     lr_schedule_step_len: int = 8
+    train_log_interval: int = 10  # log training loss every N batches
 
     # Optional: load an existing checkpoint before training
     model_checkpoint_to_load: str | None = None
@@ -158,11 +159,11 @@ def plot_overlay(config2, current_img_rgb, current_prd, current_lbl, plot_name):
     plt.close()
 
 
-def plot_training_history(config2, list_loss_tracker, list_correct, list_test_loss_tracker=None):
+def plot_training_history(config2, list_loss_tracker, list_loss_tracker_batch, list_correct, list_test_loss_tracker=None):
     
     # Plot batch-wise loss trace
     datay = np.array(list_loss_tracker).flatten()
-    datax = np.array(range(len(datay))) * 100
+    datax = list_loss_tracker_batch
     plt.plot(datax, datay, color='black', label='Train loss')
     plt.ylim([0, np.max(datay) * 1.1])
     plt.axvline(datax[-1] / 3, linestyle='--', color='black')
@@ -343,6 +344,7 @@ def train_model(config2, dataset_train, dataset_test, model_unet):
             optimizer,
             len(dataset_train),
             config2.batch_size,
+            train_log_interval=config2.train_log_interval,
         )
         current_correct, current_test_loss, current_confusion_matrix = ct.test_loop(
             val_loader,
@@ -465,6 +467,9 @@ def phase2_train(config2, dataset_train, dataset_test, model_unet):
             model_unet        
         )
 
+    # Pre-compute loss x-axis: actual batch index at each logging point
+    list_loss_tracker_batch = np.arange(len(np.array(list_loss_tracker).flatten())) * config2.train_log_interval
+
     # Save the model
     saved_model_path = save_model_checkpoint(
                             # save model
@@ -472,6 +477,7 @@ def phase2_train(config2, dataset_train, dataset_test, model_unet):
                             # optional, also save stats for this model
                             model_stats={
                                 'list_loss_tracker': list_loss_tracker,
+                                'list_loss_tracker_batch': list_loss_tracker_batch,
                                 'list_correct': list_correct,
                                 'list_test_loss_tracker': list_test_loss_tracker,
                                 'list_confusion_matrices': np.array(list_confusion_matrices),
@@ -481,7 +487,7 @@ def phase2_train(config2, dataset_train, dataset_test, model_unet):
     print(f'Saved checkpoint: {saved_model_path}')
 
     # Plot training history
-    plot_training_history(config2, list_loss_tracker, list_correct, list_test_loss_tracker)
+    plot_training_history(config2, list_loss_tracker, list_loss_tracker_batch, list_correct, list_test_loss_tracker)
 
     # Plot prediction quality
     evaluate_on_tiles_and_plot(
