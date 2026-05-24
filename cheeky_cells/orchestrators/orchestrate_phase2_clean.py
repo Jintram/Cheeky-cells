@@ -326,12 +326,14 @@ def train_model(config2, dataset_train, dataset_test, model_unet):
 
     # Run training and validation loops
     list_loss_tracker = []
-    list_correct = []; list_test_loss_tracker = []
+    list_correct = []; list_test_loss_tracker = []; list_confusion_matrices = []
+    list_lr = []
     start_time_overall = time.time()
 
     for epoch_idx in range(config2.epochs):
         print('=' * 30)
-        print(f"Epoch {epoch_idx + 1}, LR: {scheduler.get_last_lr()}")
+        current_lr = scheduler.get_last_lr()[0]
+        print(f"Epoch {epoch_idx + 1}, LR: {current_lr}")
         start_time = time.time()
 
         loss_tracker = ct.train_loop(
@@ -342,18 +344,21 @@ def train_model(config2, dataset_train, dataset_test, model_unet):
             len(dataset_train),
             config2.batch_size,
         )
-        current_correct, current_test_loss = ct.test_loop(
+        current_correct, current_test_loss, current_confusion_matrix = ct.test_loop(
             val_loader,
             model_unet,
             loss_fn,
             len(dataset_test),
             config2.batch_size,
+            nr_classes=config2.nr_classes,
         )
 
         scheduler.step()
         list_loss_tracker.append(loss_tracker)
         list_correct.append(current_correct)
         list_test_loss_tracker.append(current_test_loss)
+        list_confusion_matrices.append(current_confusion_matrix)
+        list_lr.append(current_lr)
 
         elapsed_time = time.strftime('%Hh:%Mm:%Ss', time.gmtime(time.time() - start_time))
         print(f"Epoch {epoch_idx + 1} completed in {elapsed_time}..")
@@ -364,7 +369,7 @@ def train_model(config2, dataset_train, dataset_test, model_unet):
     print('Done!')
     
 
-    return model_unet, config2, list_loss_tracker, list_correct, list_test_loss_tracker
+    return model_unet, config2, list_loss_tracker, list_correct, list_test_loss_tracker, list_confusion_matrices, list_lr
 
 
 def save_model_checkpoint(config2, model_unet, model_stats = None):
@@ -452,7 +457,7 @@ def phase2_setup(config2: Phase2Config) -> str:
 def phase2_train(config2, dataset_train, dataset_test, model_unet):
 
     # Train model
-    model_unet, config2, list_loss_tracker, list_correct, list_test_loss_tracker = \
+    model_unet, config2, list_loss_tracker, list_correct, list_test_loss_tracker, list_confusion_matrices, list_lr = \
         train_model(
             config2,
             dataset_train,
@@ -468,7 +473,9 @@ def phase2_train(config2, dataset_train, dataset_test, model_unet):
                             model_stats={
                                 'list_loss_tracker': list_loss_tracker,
                                 'list_correct': list_correct,
-                                'list_test_loss_tracker': list_test_loss_tracker
+                                'list_test_loss_tracker': list_test_loss_tracker,
+                                'list_confusion_matrices': np.array(list_confusion_matrices),
+                                'list_lr': list_lr,
                             }
                         )
     print(f'Saved checkpoint: {saved_model_path}')
