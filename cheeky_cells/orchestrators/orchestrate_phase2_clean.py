@@ -46,6 +46,21 @@ def naparicmap_to_mplcmap(cmap_custom, nr_classes=None):
     
     return ListedColormap(colors[:(max_lvls)])
 
+def naparicmap_to_pltcmap(cmap_custom, class_names=None):
+    """Convert Napari cmap to a seaborn palette keyed by class names if provided."""
+    # Convert transparent/none to black
+    NAPARI_TO_MPL = {'transparent': 'black', 'none': 'black'}
+
+    sorted_labels = sorted(cmap_custom)
+    color_values = [NAPARI_TO_MPL.get(cmap_custom[k], cmap_custom[k]) for k in sorted_labels]
+
+    # If class names are provided and aligned, use them as keys for seaborn hue mapping.
+    if class_names is not None and len(class_names) >= len(color_values):
+        return {class_names[idx]: color_values[idx] for idx in range(len(color_values))}
+
+    # Fallback to numeric label keys.
+    return {label: color_values[idx] for idx, label in enumerate(sorted_labels)}
+
 @dataclass
 class Phase2Config:
 
@@ -84,6 +99,8 @@ class Phase2Config:
     n_examples_to_plot: int = 10
     cmap_custom: dict = None # for napari
     cmap_custom_mpl: ListedColormap = None # for matplotlib
+    cmap_custom_palette: dict = None # for seaborn
+    class_names: list = None # for plotting
     
     # For saving (auto-filled)
     model_timestamp: str = None
@@ -103,6 +120,9 @@ class Phase2Config:
 
         # Convert Napari cmap to matplotlib cmap
         self.cmap_custom_mpl = naparicmap_to_mplcmap(self.cmap_custom, self.nr_classes)
+        self.cmap_custom_palette = naparicmap_to_pltcmap(self.cmap_custom, 
+                                                         self.class_names)
+        
 
 
 # %% ################################################################################
@@ -494,6 +514,7 @@ def phase2_train(config2, dataset_train, dataset_test, model_unet):
     list_confusion_matrices_np = np.array(list_confusion_matrices)
     cpts.plot_metrics(
         list_confusion_matrices_np,
+        
         save_path=os.path.join(config2.pltfolder, f'{config2.model_timestamp}_metrics.pdf'),
     )
     cpts.plot_final_confusion_matrix(
