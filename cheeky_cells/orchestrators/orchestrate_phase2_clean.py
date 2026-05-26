@@ -24,6 +24,7 @@ from torch.optim.lr_scheduler import LambdaLR
 from cheeky_cells.machine_learning.datasetclass import dataset_classes as cdc
 from cheeky_cells.machine_learning.model import unet_model as cunet
 from cheeky_cells.machine_learning.trainer import trainer as ct
+from cheeky_cells.plotting import plot_train_stats as cpts
     # import importlib; importlib.reload(ct)
 
 
@@ -488,6 +489,23 @@ def phase2_train(config2, dataset_train, dataset_test, model_unet):
 
     # Plot training history
     plot_training_history(config2, list_loss_tracker, list_loss_tracker_batch, list_correct, list_test_loss_tracker)
+
+    # Plot epoch-wise IoU/precision/recall and final confusion matrices
+    list_confusion_matrices_np = np.array(list_confusion_matrices)
+    cpts.plot_metrics(
+        list_confusion_matrices_np,
+        save_path=os.path.join(config2.pltfolder, f'{config2.model_timestamp}_metrics.pdf'),
+    )
+    cpts.plot_final_confusion_matrix(
+        list_confusion_matrices_np,
+        save_path=os.path.join(config2.pltfolder, f'{config2.model_timestamp}_finalconfusion.pdf'),
+        normalize_by='true',
+    )
+    cpts.plot_final_confusion_matrix(
+        list_confusion_matrices_np,
+        save_path=os.path.join(config2.pltfolder, f'{config2.model_timestamp}_finalconfusion.pdf'),
+        normalize_by='predicted',
+    )
 
     # Plot prediction quality
     evaluate_on_tiles_and_plot(
