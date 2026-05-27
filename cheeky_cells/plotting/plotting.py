@@ -41,7 +41,7 @@ def overlayplot(current_img_rgb,
     return fig, ax
     
     
-def plot_overlay_n_pred(image, pred, cmap_custom):
+def plot_overlay_n_pred(image, pred, cmap_custom, mylinewidths=.3):
     """Plots orginal image and prediction on top, truth to the side"""
     
     fig, axs = plt.subplots(1,2, figsize=(17.2/2.54,(17.2/2)/2.54))  
@@ -50,7 +50,7 @@ def plot_overlay_n_pred(image, pred, cmap_custom):
     _ = axs[0].imshow(image)
     _ = axs[0].contour(pred, levels=(np.max(pred)),
                     cmap=cmap_custom,
-                    linewidths=.3)
+                    linewidths=mylinewidths)
 
     _ = axs[1].set_title("Prediction")
     _ = axs[1].imshow(pred, cmap=cmap_custom)

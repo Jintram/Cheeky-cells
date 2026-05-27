@@ -118,16 +118,17 @@ class Phase2Config:
         os.makedirs(self.modelfolder, exist_ok=True)
         os.makedirs(self.pltfolder, exist_ok=True)
 
-        # Convert Napari cmap to matplotlib cmap
-        self.cmap_custom_mpl = naparicmap_to_mplcmap(self.cmap_custom, self.nr_classes)
-        self.cmap_custom_palette = naparicmap_to_pltcmap(self.cmap_custom, 
-                                                         self.class_names)
+        # Convert Napari cmap to matplotlib & seaborn cmap/palette
+        # if those are not set by user
+        if self.cmap_custom_mpl is None:
+            self.cmap_custom_mpl = naparicmap_to_mplcmap(self.cmap_custom, self.nr_classes)
+        if self.cmap_custom_palette is None:
+            self.cmap_custom_palette = naparicmap_to_pltcmap(self.cmap_custom, self.class_names)
         
 
 
 # %% ################################################################################
 # Phase 2 plotting related functions
-
 
 def plot_sidebyside(config2, current_img_rgb, current_prd, current_lbl, plot_name):
     # pltfolder =  config2.pltfolder;  cmap_plantclasses = config2.cmap_custom_mpl
@@ -508,25 +509,31 @@ def phase2_train(config2, dataset_train, dataset_test, model_unet):
     print(f'Saved checkpoint: {saved_model_path}')
 
     # Plot training history
-    plot_training_history(config2, list_loss_tracker, list_loss_tracker_batch, list_correct, list_test_loss_tracker)
+    plot_training_history(config2, list_loss_tracker, list_loss_tracker_batch, 
+                          list_correct, list_test_loss_tracker)
 
     # Plot epoch-wise IoU/precision/recall and final confusion matrices
+    print(f"Plotting metrics to {config2.pltfolder}")
     list_confusion_matrices_np = np.array(list_confusion_matrices)
-    cpts.plot_metrics(
-        list_confusion_matrices_np,
-        
-        save_path=os.path.join(config2.pltfolder, f'{config2.model_timestamp}_metrics.pdf'),
+    _,_=cpts.plot_metrics(
+        list_confusion_matrices_np,        
+        save_path=os.path.join(config2.pltfolder, f'{config2.model_timestamp}__metrics.pdf'),
     )
-    cpts.plot_final_confusion_matrix(
+    _,_=cpts.plot_final_confusion_matrix(
         list_confusion_matrices_np,
-        save_path=os.path.join(config2.pltfolder, f'{config2.model_timestamp}_finalconfusion.pdf'),
+        save_path=os.path.join(config2.pltfolder, f'{config2.model_timestamp}__finalconfusion.pdf'),
         normalize_by='true',
     )
-    cpts.plot_final_confusion_matrix(
+    _,_=cpts.plot_final_confusion_matrix(
         list_confusion_matrices_np,
-        save_path=os.path.join(config2.pltfolder, f'{config2.model_timestamp}_finalconfusion.pdf'),
+        save_path=os.path.join(config2.pltfolder, f'{config2.model_timestamp}__finalconfusion.pdf'),
         normalize_by='predicted',
     )
+    _,_=cpts.plot_learning_rate(
+            list_lr, 
+            save_path=os.path.join(config2.pltfolder, f'{config2.model_timestamp}__learningrate.pdf')
+    )
+    plt.close("all")
 
     # Plot prediction quality
     evaluate_on_tiles_and_plot(

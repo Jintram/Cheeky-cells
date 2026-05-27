@@ -22,7 +22,7 @@ def _apply_config():
     # Setting the ratio to 0.0 removes the cap entirely so macOS can
     # page to disk under pressure rather than crashing.
     if cfg.getboolean("pytorch", "disable_mps_memory_limit", fallback=False):
-        print("Removing pytroch memory limit..")
+        print("Removing pytorch memory limit..")
         os.environ.setdefault("PYTORCH_MPS_HIGH_WATERMARK_RATIO", "0.0")
 
 

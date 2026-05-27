@@ -14,7 +14,7 @@
 # %% ################################################################################
 # Libraries
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from collections.abc import Callable
 from matplotlib.colors import ListedColormap
 
@@ -25,6 +25,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import torch
+
+import yaml
 
 
 from torchvision.transforms import ToTensor
@@ -70,6 +72,8 @@ class Phase3Config:
     
     # Optional plotting settings
     cmap_custom: ListedColormap | None = None
+    DPI_plots: int = 300
+    extraplottingparams: dict = field(default_factory=dict)
     
     # Save _img.npy and _img_enhanced.npy alongside segmentation
     # (useful for feeding predictions back into the annotation loop)
@@ -267,6 +271,7 @@ def segment_all_files(config: Phase3Config,
                 img_toseg_prepr_norm,
                 img_pred_lbls,
                 cmap_custom=config.cmap_custom,
+                **config.extraplottingparams
             )
             
             # save the plot
@@ -274,7 +279,7 @@ def segment_all_files(config: Phase3Config,
                                     config.outputdirectory, "plots/", 
                                     df_metadata_input.loc[file_idx, 'subdir'], 
                                     current_basefilename + "_plot.pdf"), 
-                        dpi=300, bbox_inches='tight')
+                        dpi=config.DPI_plots, bbox_inches='tight')
             plt.close(fig)
         
         # record end time
@@ -305,6 +310,11 @@ def segment_all_files(config: Phase3Config,
         files_actually_processed += 1
     
     print("Done")
+    
+    # Now dump the config file in yaml format in output directory
+    config_filepath = os.path.join(config.outputdirectory, "log_segmentation.yaml")
+    with open(config_filepath, 'w') as f:
+        yaml.dump(config.__dict__, f)
     
     return None
 

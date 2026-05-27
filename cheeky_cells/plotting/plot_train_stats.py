@@ -228,7 +228,23 @@ def plot_metrics(list_confusion_matrices,
         
     return fig, axs
     
+def plot_learning_rate(list_lr, save_path=None):
+    """ Simple line plot that shows the learning rate regime. """
     
+    fig, axs = plt.subplots(1,1, figsize=(5/2.54, 2.5/2.54))
+    
+    axs.plot(np.arange(len(list_lr)), list_lr)
+    axs.set_xlabel("Training progress (epoch)")
+    axs.set_ylabel("LR")
+    axs.set_yscale("log")
+    plt.tight_layout()
+    
+    # save if desired
+    if save_path is not None:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        fig.savefig(save_path, bbox_inches='tight', dpi=600)
+    
+    return fig, axs
     
     
     
