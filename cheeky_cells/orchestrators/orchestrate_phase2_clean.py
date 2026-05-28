@@ -97,6 +97,8 @@ class Phase2Config:
 
     # Plotting settings
     n_examples_to_plot: int = 10
+    evaluate_full_testset: bool = True
+    n_full_test_to_plot: int | None = None
     cmap_custom: dict = None # for napari
     cmap_custom_mpl: ListedColormap = None # for matplotlib
     cmap_custom_palette: dict = None # for seaborn
@@ -422,6 +424,20 @@ def save_model_checkpoint(config2, model_unet, model_stats = None):
     
     return output_path
 
+# NOT NEEDED AS CAN ALREADY BE DONE DURING INITIALIZATION USING CONFIG2
+# def load_model_checkpoint(config2, model_unet, checkpoint_path=None):
+#     """Load model weights from a checkpoint file."""
+
+#     if checkpoint_path is None:
+#         checkpoint_path = config2.model_checkpoint_to_load
+
+#     if checkpoint_path is None:
+#         raise ValueError('No checkpoint path provided.')
+
+#     model_unet.load_state_dict(torch.load(checkpoint_path, map_location=config2.target_device))
+
+#     return model_unet
+
 
 def evaluate_on_tiles_and_plot(config2, model_unet, dataset_train, dataset_test, n_examples: int = 10):
     
@@ -455,6 +471,43 @@ def evaluate_on_tiles_and_plot(config2, model_unet, dataset_train, dataset_test,
             fig = plot_overlay_contour2(config2, current_img_rgb, current_prd[0].argmax(0), current_lbl)
             plt.savefig(os.path.join(config2.pltfolder, f'{config2.model_timestamp}_predictionoverlay2_{plot_name}.pdf'), dpi=600)
             plt.close(fig)
+
+
+def evaluate_on_full_testset_and_plot(config2, model_unet, dataset_test):
+    """ Function to optionally predict and plot full resolution of test imgs."""
+
+    max_to_plot = config2.n_full_test_to_plot
+    was_training = model_unet.training
+    model_unet.eval()
+
+    with torch.no_grad():
+        for idx, (filename_img, filename_lbl) in enumerate(zip(dataset_test.filelist_imgs, dataset_test.filelist_labels)):
+            if (max_to_plot is not None) and (idx >= max_to_plot):
+                break
+
+            current_img_np = np.load(dataset_test.datadir + filename_img, allow_pickle=True)
+            current_lbl_np = np.load(dataset_test.datadir + filename_lbl, allow_pickle=True)
+
+            current_img = torch.tensor(current_img_np.transpose(2, 0, 1), dtype=torch.float32).to(config2.target_device) / 255.0
+            current_lbl = torch.tensor(current_lbl_np, dtype=torch.long).to(config2.target_device)
+
+            logits = model_unet(current_img[None, :, :, :])
+
+            current_img_rgb = current_img.cpu().numpy().transpose(1, 2, 0)
+            current_lbl_np = current_lbl.cpu().numpy()
+            current_prd_np = logits.cpu().numpy()
+
+            correct_pixels = current_prd_np[0].argmax(0) == current_lbl_np
+            accuracy = np.sum(correct_pixels) / correct_pixels.size
+
+            filename_base = os.path.splitext(os.path.basename(filename_img))[0]
+            print(f'Accuracy for full test image {filename_base}: {accuracy * 100:.2f} %')
+
+            plot_name = f'fulltest_{idx:03d}_{filename_base}'
+            plot_sidebyside(config2, current_img_rgb, current_prd_np, current_lbl_np, plot_name)
+
+    if was_training:
+        model_unet.train()
 
 
 # %% ################################################################################
@@ -543,6 +596,13 @@ def phase2_train(config2, dataset_train, dataset_test, model_unet):
         dataset_test,
         n_examples=config2.n_examples_to_plot,
     )
+
+    if config2.evaluate_full_testset:
+        evaluate_on_full_testset_and_plot(
+            config2,
+            model_unet,
+            dataset_test,
+        )
     
     return saved_model_path
 
