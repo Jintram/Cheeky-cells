@@ -64,9 +64,6 @@ pip install -e .
 python pipelineclean_phase1_example_roots.py
 ```
 
-There is also a local venv at `deactivate/` used in some terminals
-(`source deactivate/bin/activate`). Prefer the conda environment for new work.
-
 **No test suite, linter, or CI is configured.** Do not invent commands like
 `pytest`, `ruff`, or `make test` — they will not exist. Validate changes by
 running the relevant pipeline script or by importing the modified module.
@@ -94,6 +91,13 @@ running the relevant pipeline script or by importing the modified module.
 
 ## Working preferences
 
+- Coding style;
+    - Code should be relatively offensive (no tests, extensive docstrings). 
+    - Code should be modular, but rather a two liner than extensive function definitions.
+    - Generally, code is organized in topical blocks, headed by explanatory comment 
+    focussed on the why and what, not the how.
+    - Do not add type hints, docstrings, or comments to existing code that does not
+  already have them, unless that is the task.
 - **Do not modify** files under `_previous_version/`, `old-code/`, or
   `deactivate/` unless explicitly asked.
 - **Prefer editing existing files** over creating new ones; the package layout
@@ -101,8 +105,6 @@ running the relevant pipeline script or by importing the modified module.
 - When adding dataset-specific code, place it under
   `cheeky_cells/prepostprocessing_input/<dataset>/` following the `ara_roots/`
   pattern.
-- Do not add type hints, docstrings, or comments to existing code that does not
-  already have them, unless that is the task.
 - Do not introduce new dependencies without flagging it — the conda recipe in
   the README is the source of truth and must be updated in lockstep.
 
@@ -129,3 +131,4 @@ running the relevant pipeline script or by importing the modified module.
 - Dataset format expectations: [documentation/datasets.md](documentation/datasets.md)
 - Using prior model output as training input: [documentation/use-segresults-newtraining.md](documentation/use-segresults-newtraining.md)
 - Open issues / design TODOs: [documentation/TODO.md](documentation/TODO.md)
+- Development considerations / some logging: [journal/readme.md](journal/readme.md)
