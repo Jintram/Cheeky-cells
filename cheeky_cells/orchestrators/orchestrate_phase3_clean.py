@@ -59,7 +59,8 @@ class Phase3Config:
 
     # Input data metadata settings
     data_path_input: str # '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/DATA/'
-    metadata_input_filepath: str = None # '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/metadata_imagefiles_manual_inputdata20251027.xlsx'
+    # In-memory metadata of files to segment; populated by collect_filelist().
+    df_metadata: pd.DataFrame | None = None
     
     # Preprocessing function (optional), modifies image
     fn_specific_preprocessing: Callable | None = None
@@ -86,27 +87,19 @@ class Phase3Config:
 # os.makedirs(paths['segfolder'], exist_ok=True)
 # os.makedirs(paths['pltfolder'], exist_ok=True)
 
-def collect_filelist(config: Phase3Config, file_formats=['.tif','.nd2','.jpg','.png'], 
-                     segchannel = 'all', invert_image='no'):
-    # config = config3_ara_root; file_formats=['.tif','.nd2','.jpg','.png']; segchannel = 'all'; invert_image='no'
-    
-    config.metadata_input_filepath = \
-        crw.gen_metadatafile_segfiles(
-                    basedirectory = config.data_path_input, 
-                    outputdirectory = config.outputdirectory, 
-                    file_formats = file_formats, 
-                    segchannel = segchannel, 
-                    invert_image = invert_image
-        )
-    
-    return config
-    
+def collect_filelist(config: Phase3Config,
+                     file_formats=('.tif', '.nd2', '.jpg', '.png'),
+                     segchannel='all'):
 
-def load_input_metadata(config: Phase3Config) -> pd.DataFrame:
-    
-    metadata_filestoseg = pd.read_excel(config.metadata_input_filepath)
-    
-    return metadata_filestoseg
+    config.df_metadata, _ = crw.gen_metadatafile(
+        basedirectory=config.data_path_input,
+        outputdirectory=config.outputdirectory,
+        file_formats=file_formats,
+        segchannel=segchannel,
+        save_xlsx=False,
+    )
+
+    return config
 
 
 # THIS CONTAINS IMAGE PRE-PROCESSING, AND SHOULD BE DONE SEPARATELY
@@ -118,7 +111,9 @@ def get_input_img_file(config: Phase3Config,
     prepr_info = None
     
     # Read image from metadata
-    img_toseg = crw.loadimgfile_metadata(df_metadata, file_idx, show_name=True)
+    img_toseg = crw.loadimgfile_metadata(df_metadata, file_idx,
+                                         basedirectory=config.data_path_input,
+                                         show_name=True)
         # plt.imshow(img_toseg)
 
     # Dataset-specific image preprocessor
@@ -191,7 +186,9 @@ def segment_all_files(config: Phase3Config,
     """
         
     # First open the metadata file
-    df_metadata_input = load_input_metadata(config)
+    df_metadata_input = config.df_metadata
+    if df_metadata_input is None:
+        raise ValueError("config.df_metadata is None — call collect_filelist(config) first.")
     
     # Set up model
     print("Initializing U-Net")
@@ -312,9 +309,11 @@ def segment_all_files(config: Phase3Config,
     print("Done")
     
     # Now dump the config file in yaml format in output directory
+    # (strip the metadata DataFrame; pyyaml can't represent it cleanly)
     config_filepath = os.path.join(config.outputdirectory, "log_segmentation.yaml")
+    cfg_dict = {k: v for k, v in config.__dict__.items() if k != 'df_metadata'}
     with open(config_filepath, 'w') as f:
-        yaml.dump(config.__dict__, f)
+        yaml.dump(cfg_dict, f)
     
     return None
 

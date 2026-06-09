@@ -43,9 +43,7 @@ class Phase1Config:
     suffix: str = ''
     file_formats: tuple = ('.tif', '.nd2', '.jpg')
     segchannel: str = 'all'
-    invert_image: str = 'no' 
-    default_columns: tuple = ('dataset', 'train_or_test', 'comments')
-    
+
     # metadata file
     metadatafiles_path: str = None
     
@@ -80,14 +78,12 @@ def phase1_setup(config1: Phase1Config) -> None:
     # Optionally regenerate metadata from raw folders
     if config1.metadatafiles_path is None:
         crw.gen_metadatafile(
-            basedirectory=config1.inputdirectory, 
-            subdirs=None, 
+            basedirectory=config1.inputdirectory,
             outputdirectory=config1.outputdirectory,
             file_formats=config1.file_formats,
-            suffix=config1.suffix,
-            segchannel = config1.segchannel,
-            invert_image = config1.invert_image,
-            default_columns=config1.default_columns
+            segchannel=config1.segchannel,
+            save_xlsx=True,
+            output_filename=f'metadata_imagefiles_autogen{config1.suffix}.xlsx',
         )
 
 def phase1_annotate(config1):
@@ -99,6 +95,7 @@ def phase1_annotate(config1):
     caa.annotate_all_pictures_aided(
         df_metadata,
         output_segfolder=config1.segfolder,
+        basedirectory=config1.inputdirectory,
         intitial_segfolder=None,
         TILE_SIZE=config1.tile_size,
         tile_selection_by='maxvar',

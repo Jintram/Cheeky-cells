@@ -285,6 +285,7 @@ def edit_annotation_napari(image, segmentation, mylabelcolormap=None, title='Edi
 
 def annotate_pictures_aided(df_metadata, file_idx, 
                             output_segfolder, 
+                            basedirectory,
                             segfn = basicseg1,
                             intitial_segfolder = None, TILE_SIZE=2000,
                             tile_selection_by = 'maxvar', 
@@ -310,13 +311,13 @@ def annotate_pictures_aided(df_metadata, file_idx,
     os.makedirs(output_segfolder, exist_ok=True)
     
     # Get image name
-    _, _, filename, _, _ = crw.get_fileinfo_metadata(df_metadata, file_idx)
+    _, filename, _ = crw.get_fileinfo_metadata(df_metadata, file_idx)
     filename_base = os.path.splitext(filename)[0]
     print(f'Load file: {filename}')
         
     # Load the image
     img_toseg = \
-        crw.loadimgfile_metadata(df_metadata, file_idx)
+        crw.loadimgfile_metadata(df_metadata, file_idx, basedirectory=basedirectory)
         # plt.imshow(img_toseg); plt.show()
 
     # Load seg file if present
@@ -391,6 +392,7 @@ def annotate_pictures_aided(df_metadata, file_idx,
 # Now a function that loops over the images that are available in the metadata and calls
 # annotate_pictures_aided()
 def annotate_all_pictures_aided(df_metadata, output_segfolder, 
+                                basedirectory,
                                 intitial_segfolder = None, TILE_SIZE=2000,
                                 tile_selection_by = 'maxvar', segfn=basicseg1,
                                 ignore_saved_file=False, showplots=False,
@@ -423,6 +425,7 @@ def annotate_all_pictures_aided(df_metadata, output_segfolder,
         quitloop_flag = \
             annotate_pictures_aided(df_metadata, file_idx, 
                                 output_segfolder, 
+                                basedirectory=basedirectory,
                                 segfn=segfn,
                                 intitial_segfolder = intitial_segfolder, 
                                 TILE_SIZE=TILE_SIZE,

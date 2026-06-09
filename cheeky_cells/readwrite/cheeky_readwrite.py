@@ -22,136 +22,71 @@ from skimage.exposure import rescale_intensity
 # %% ################################################################################
 # 
 
-def gen_metadatafile(basedirectory, subdirs, outputdirectory, 
-                     suffix='',
-                     file_formats=['.tif','.nd2','.jpg'], 
-                     segchannel = 'all', invert_image='no', 
-                     default_columns = ['dataset', 'train_or_test', 'comments']):
-                                        # 'basedir', 'subdir' will always be added    
+def gen_metadatafile(basedirectory, outputdirectory,
+                     file_formats=('.tif', '.nd2', '.jpg'),
+                     segchannel='all',
+                     save_xlsx=True,
+                     output_filename='metadata_imagefiles_autogen.xlsx'):
     '''
-    Given a folder, generate an excel file with column 'filename' with all image files
-    from a given directory, and add also default columns that the user can 
-    fill in further.
-    
-    If you have (multiple) subdirectories with images in your main data directory,
-    specify those in subdirs.
-    
-    Use trailling slashes in paths.
-    
-    If segchannel = np.nan, it will later be assumed to take all channels.
-    
-    invert_image can be 'yes' or 'no', to indicate whether the image should be inverted (negative)
+    Scan `basedirectory` recursively for image files and build a metadata
+    DataFrame with columns: subdir, filename, segmentation_channel,
+    train_or_test (the 'train_or_test' column is left empty for the user
+    to fill in by hand before phase 2).
+
+    `basedirectory` itself is not stored in the table — it is a per-run
+    config value that the caller already knows. `subdir` entries are
+    paths relative to `basedirectory`.
+
+    If save_xlsx=True, also writes the table to
+    outputdirectory/output_filename.
+
+    Returns (df_metadata, output_filepath_or_None).
     '''
-    # to run function code from this script
-    # file_formats=['.tif','.nd2','.jpg']; segchannel = np.nan; default_columns = ['dataset', 'train_or_test', 'comments']
-    # basedirectory = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/2025_Cells_preliminarybatch1/'
-    # outputdirectory = '/Users/m.wehrens/Data_UVA/2024_07_Wang-cel/ANALYSIS/20251015/'
-    # subdirs = ['Cheeck-Cells_AnnotatedMW_resized/']
-    
-    # make output directory
+
     os.makedirs(outputdirectory, exist_ok=True)
-    
-    # set subdirs if not given
-    if subdirs is None:
-        subdirs = ['']
-    
-    # find all .nd2 and .tif files
-    allfiles = []
-    allfiles_subdirs = []
-    for current_subdir in subdirs:
-        for current_format in file_formats:
-            
-            # Collect the file paths
-            print(f'Collecting {current_format} files from {basedirectory}')
-            current_files = glob.glob(os.path.join(basedirectory, current_subdir, f'*{current_format}'))
-            
-            # Store their info
-            # filename without path
-            allfiles.extend([os.path.basename(f) for f in current_files])
-            # corresponding subdir
-            allfiles_subdirs.extend([current_subdir]*len(current_files))
-        
-    # Now convert this to a table, with one row per file
-    nr_of_rows = len(allfiles) 
-    df_metadata = pd.DataFrame({'basedir': nr_of_rows * [basedirectory],
-                       'subdir': allfiles_subdirs,
-                       'filename': allfiles,
-                       'segmentation_channel': nr_of_rows * [segchannel],
-                       'invert_image': nr_of_rows * [invert_image]})
-    # Now add other columns in default list
-    for col in default_columns:
-        df_metadata[col] = nr_of_rows * ['']
-        
-    # now save the metadata file
-    outputfilename = os.path.join(outputdirectory, 'metadata_imagefiles_autogen'+suffix+'.xlsx')
-    df_metadata.to_excel(outputfilename, index=False)
-    
-    return None
 
+    all_filenames = []
+    all_subdirs = []
+    for current_format in file_formats:
+        print(f'Collecting {current_format} files recursively from {basedirectory}')
+        current_paths = glob.glob(os.path.join(basedirectory, f'**/*{current_format}'), recursive=True)
+        all_filenames.extend(os.path.basename(p) for p in current_paths)
+        all_subdirs.extend(os.path.relpath(os.path.dirname(p), basedirectory) for p in current_paths)
 
-def gen_metadatafile_segfiles(basedirectory, outputdirectory, 
-                     file_formats=['.tif','.nd2','.jpg','.png'], 
-                     segchannel = 'all', invert_image='no'):
-    '''
-    Given a folder, generate an excel file with column 'filename' with all image files
-    from a given directory and its subdirectories, and add also default columns
-    that the user can fill in further.
-    
-    Invert_image can be 'yes' or 'no', to indicate whether the image should be inverted (negative)
-    '''
-    
-    # make output directory
-    os.makedirs(outputdirectory, exist_ok=True)
-    
-    # find all image files
-    all_paths = []
-    for ext in file_formats:
-        all_paths.extend(glob.glob(os.path.join(basedirectory,f'**/*{ext}'), recursive=True))
-    
-    # Now get the subdirs and filenames
-    all_subdirs = [
-        os.path.relpath(os.path.dirname(current_path), basedirectory) 
-            for current_path in all_paths
-        ]
-    all_filenames = [
-        os.path.basename(current_path) 
-            for current_path in all_paths
-        ]
-                        
-    # Now convert this to a table, with one row per file
-    nr_of_rows = len(all_filenames) 
-    df_metadata = pd.DataFrame({'basedir': nr_of_rows * [basedirectory],
-                       'subdir': all_subdirs,
-                       'filename': all_filenames,
-                       'segmentation_channel': nr_of_rows * [segchannel],
-                       'invert_image': nr_of_rows * [invert_image]})
-                        # os.path.join(basedirectory, all_subdirs[0], all_filenames[0])
-        
-    # now save the metadata file
-    metadata_toseg_filepath = os.path.join(outputdirectory, 'metadata_files_toseg_autogen.xlsx')
-    df_metadata.to_excel(metadata_toseg_filepath, index=False)
-    
-    return metadata_toseg_filepath
+    nr_of_rows = len(all_filenames)
+    df_metadata = pd.DataFrame({
+        'subdir': all_subdirs,
+        'filename': all_filenames,
+        'segmentation_channel': [segchannel] * nr_of_rows,
+        'train_or_test': [''] * nr_of_rows,
+    })
+
+    output_filepath = None
+    if save_xlsx:
+        output_filepath = os.path.join(outputdirectory, output_filename)
+        df_metadata.to_excel(output_filepath, index=False)
+
+    return df_metadata, output_filepath
 
     
-def get_fileinfo_metadata(df_metadata, file_idx): 
+def get_fileinfo_metadata(df_metadata, file_idx):
     '''
-    extract essential file info from metadata for file with file_idx
+    Extract essential file info from metadata for file with file_idx.
+    Returns: subdir, filename, segchannel.
+    (`basedir` is no longer stored per-row; pass it explicitly to loaders.)
     '''
-        
-    basedir = df_metadata.loc[file_idx, 'basedir']
+
     subdir = df_metadata.loc[file_idx, 'subdir']
     filename = df_metadata.loc[file_idx, 'filename']
     segchannel = df_metadata.loc[file_idx, 'segmentation_channel']
-    do_invert = True if df_metadata.loc[file_idx, 'invert_image']=='yes' else False
-    
+
     # some contingencies for if subdir is either number or nan
     if pd.isna(subdir):
         subdir = ''
     elif isinstance(subdir, (int, float)):
         subdir = str(subdir)
-    
-    return basedir, subdir, filename, segchannel, do_invert
+
+    return subdir, filename, segchannel
         
     
 def invertimage(img):
@@ -171,35 +106,31 @@ def invertimage(img):
     return img_inverted
     
     
-def loadimgfile_metadata(df_metadata, file_idx, show_name=False): # , metadatapath=None
+def loadimgfile_metadata(df_metadata, file_idx, basedirectory, show_name=False, do_invert=False):
     '''
     Loads one image with the to be segmented data, based
-    on the metadata file. Specify which image by specifying an 
-    index. 
-    
-    Input is either a pandas metadata dataframe, or 
-    lcoation of excel file with that information.
-    
-    Will either return 2d image if image is 2d or channel for 
+    on the metadata file. Specify which image by specifying an
+    index.
+
+    `basedirectory` is supplied by the caller (typically a Phase config) —
+    it is not stored per-row in the metadata table.
+
+    Will either return 2d image if image is 2d or channel for
     segmentation is given, otherwise, will return 3d image
     (in case of RGB, for example).
+
+    Set do_invert=True to return the negative of the image. Inversion is
+    dataset-wide rather than per-file, so callers decide.
     '''
-    # 
-    
-    # Load the data if necessary
-    # if df_metadata is None and metadatapath is None:
-    #     raise ValueError('Either df_metadata or metadatapath should be given.')
-    # if df_metadata is None:
-    #     df_metadata = pd.read_excel(metadatapath)
-    
+
     # Get information for file to load
-    basedir, subdir, filename, segchannel, do_invert = get_fileinfo_metadata(df_metadata, file_idx)
-    
+    subdir, filename, segchannel = get_fileinfo_metadata(df_metadata, file_idx)
+
     if show_name:
         print(f"Loading file {filename}..")
     
     # Load the file
-    fullpath = os.path.join(basedir, subdir, filename)    
+    fullpath = os.path.join(basedirectory, subdir, filename)    
     if filename.endswith('.nd2'):
         # nd2 files need separate lib to load
         img = nd2.ND2File(fullpath).asarray()
@@ -326,14 +257,14 @@ def loadsegfile_metadata(df_metadata, file_idx, segfolder, suffix='_seg', silenc
     img_annot = None
     
     # Get image info
-    _, _, filename, _, _ = get_fileinfo_metadata(df_metadata, file_idx)
-    
+    _, filename, _ = get_fileinfo_metadata(df_metadata, file_idx)
+
     # Get current file extension
     filename_extension = os.path.splitext(filename)[1]
-    
+
     # Check for existing seg file
     if not silence:
-        print('Looking for', filename.replace(filename_extension, suffix+'.npy'), ',', 
+        print('Looking for', filename.replace(filename_extension, suffix+'.npy'), ',',
                              filename.replace(filename_extension, suffix+'.tif'))
     filepath_npy = os.path.join(segfolder, filename.replace(filename_extension, suffix+'.npy'))
     # filepath_npz = os.path.join(segfolder, filename.replace(filename_extension, suffix+'.npz'))
@@ -367,9 +298,9 @@ def savesegfile_default(x, df_metadata, file_idx, segfolder, suffix):
     Saving data "x" to a npy file using standard filename formatting
     for segfiles.
     '''
-    
+
     # determine filename from metadata
-    _, _, filename, _, _ = get_fileinfo_metadata(df_metadata, file_idx)
+    _, filename, _ = get_fileinfo_metadata(df_metadata, file_idx)
     
     # determine new filename
     filename_base = os.path.splitext(filename)[0]
