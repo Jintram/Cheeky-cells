@@ -229,27 +229,31 @@ def plot_overlay_contour(config2, image, label):
     
     return fig
 
-def plot_overlay_contour2(config2, image, pred, label):
+def plot_overlay_contour2(config2, image, pred, label, 
+                          mylinewidths=.3, myfontsize=8):
     """Plots orginal image and prediction on top, truth to the side"""
     
-    fig, axs = plt.subplots(1,2, figsize=(10/2.54,5/2.54))
-    
-    _ = axs[0].set_title("Prediction")
-    _ = axs[0].imshow(image)
-    #_ = axs[1].imshow(label, alpha=(label>0)*.5)
-    _ = axs[0].contour(pred, levels=(np.max(pred)),
-                    cmap=config2.cmap_custom_mpl,
-                    linewidths=.3)
+    # set font size
+    with plt.rc_context({'font.size': myfontsize, 'font.family': 'Arial'}):
+        
+        fig, axs = plt.subplots(1,2, figsize=(10/2.54,5/2.54))
+        
+        _ = axs[0].set_title("Prediction")
+        _ = axs[0].imshow(image)
+        #_ = axs[1].imshow(label, alpha=(label>0)*.5)
+        _ = axs[0].contour(pred, levels=(np.max(pred)),
+                        cmap=config2.cmap_custom_mpl,
+                        linewidths=mylinewidths)
 
-    _ = axs[1].set_title("Truth")
-    _ = axs[1].imshow(image)
-    #_ = axs[1].imshow(label, alpha=(label>0)*.5)
-    _ = axs[1].contour(label, levels=(np.max(label)),
-                    cmap=config2.cmap_custom_mpl,
-                    linewidths=.3)
-    
-    # Now save this to the plot folder
-    plt.tight_layout()
+        _ = axs[1].set_title("Truth")
+        _ = axs[1].imshow(image)
+        #_ = axs[1].imshow(label, alpha=(label>0)*.5)
+        _ = axs[1].contour(label, levels=(np.max(label)),
+                        cmap=config2.cmap_custom_mpl,
+                        linewidths=mylinewidths)
+        
+        # Now save this to the plot folder
+        plt.tight_layout()
     
     return fig
 
@@ -503,8 +507,16 @@ def evaluate_on_full_testset_and_plot(config2, model_unet, dataset_test):
             filename_base = os.path.splitext(os.path.basename(filename_img))[0]
             print(f'Accuracy for full test image {filename_base}: {accuracy * 100:.2f} %')
 
+            # plot 1
             plot_name = f'fulltest_{idx:03d}_{filename_base}'
             plot_sidebyside(config2, current_img_rgb, current_prd_np, current_lbl_np, plot_name)
+            
+            # plot 2
+            plot_name = f'fulltest_{idx:03d}_{filename_base}'
+            fig = plot_overlay_contour2(config2, current_img_rgb, current_prd_np[0].argmax(0), current_lbl_np,
+                                        mylinewidths=.03, myfontsize=6)
+            plt.savefig(os.path.join(config2.pltfolder, f'predictionoverlay2_{config2.model_timestamp}_{plot_name}.pdf'), dpi=2400)
+            plt.close(fig)
 
     if was_training:
         model_unet.train()
