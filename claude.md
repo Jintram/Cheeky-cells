@@ -17,8 +17,7 @@ pipeline:
 - **Phase 3** — Apply the trained model to new images.
 
 Each phase has an example entry-point script at the repo root
-(`pipelineclean_phase1_example_*.py`, `pipeline_example_arabidopsis_ML_phase2_train_model.py`,
-`pipelineclean_phase3_example_*.py`) and a matching orchestrator under
+(`pipelineclean_phase{1,2,3}_example_*.py`) and a matching orchestrator under
 [cheeky_cells/orchestrators/](cheeky_cells/orchestrators/).
 
 The package was originally developed for cell and plant segmentation but is
@@ -33,12 +32,11 @@ intended to be generic across segmentation problems.
   - [annotating_data/](cheeky_cells/annotating_data/) — Napari-based annotation, preliminary segmentation, post-processing.
   - [machine_learning/](cheeky_cells/machine_learning/) — model, dataset class, trainer, application code.
   - [prepostprocessing_input/](cheeky_cells/prepostprocessing_input/) — dataset-specific pre/post-processing (e.g. `ara_roots/`).
-  - [plotting/](cheeky_cells/plotting/), [readwrite/](cheeky_cells/readwrite/), [misc/](cheeky_cells/misc/), [devtools/](cheeky_cells/devtools/) — supporting utilities.
+  - [plotting/](cheeky_cells/plotting/), [readwrite/](cheeky_cells/readwrite/) — supporting utilities.
 - `pipelineclean_phase*_example_*.py` — runnable example pipelines at repo root. Users copy and edit these.
-- [_previous_version/](_previous_version/) — legacy notebooks and modules. **Do not edit** unless explicitly asked; treat as reference only.
-- [old-code/](old-code/) — superseded scripts. Same: reference only.
-- [documentation/](documentation/) — design notes (`datasets.md`, `importing_functionality.md`, `use-segresults-newtraining.md`, `TODO.md`).
-- [changelog/](changelog/), [journal/](journal/), [visuals/](visuals/) — bookkeeping folders.
+- [documentation/](documentation/) — design notes (`datasets.md`, `importing_functionality.md`, `use-segresults-newtraining.md`, `TODO.md`) and `visuals/`.
+- [journal/](journal/) — running development notes.
+- [misc/](misc/) — parking area for legacy and scratch material: `_previous_version/` (legacy notebooks/modules), `old-code/` (superseded scripts, organised by refactor date), plus loose one-off scripts. **Do not edit** unless explicitly asked; treat as reference only.
 
 Package metadata lives in [pyproject.toml](pyproject.toml). Dependencies are
 **not** declared there — they are installed via conda (see below).

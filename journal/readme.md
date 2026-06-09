@@ -29,7 +29,9 @@ having to annotate large image files.
     is not used any more. 
     - Should be relocated to a pre-processing step.
 
-#### To-do: prune unused code
+#### Pruning unused code
+
+*(Analysis largely by claude opus 4.7, executed manually.)*
 
 Reachability analysis was done starting from the active
 `pipelineclean_phase{1,2,3}_*.py` entry points. Everything below is
@@ -80,22 +82,22 @@ Legacy entry-point at repo root:
 
 ##### Phase B — update references
 
-- [ ] Edit [claude.md](../claude.md): remove
+- [X] Edit [claude.md](../claude.md): remove
   `pipeline_example_arabidopsis_ML_phase2_train_model.py` from the
   phase-2 entry-point sentence; drop `cheeky_cells/devtools/` and/or
   `cheeky_cells/misc/` from the repository-layout bullet list if those
   subpackages were removed.
-- [ ] Check [cheeky_cells/__init__.py](../cheeky_cells/__init__.py) for any
+- [X] Check [cheeky_cells/__init__.py](../cheeky_cells/__init__.py) for any
   imports from removed subpackages (likely a no-op, but verify).
 
 ##### Phase C — verify
 
-- [ ] Do an import-only smoke run of each of the five active entry points
+- [-] Do an import-only smoke run of each of the five active entry points
   (just up to the first orchestrator call + config construction — no need to
   open the napari GUI).
-- [ ] `grep -r "cheeky_cells.misc\|cheeky_cells.devtools\|cheeky_cells.machine_learning.applying\|plotting_generic\|annotation_aided_OLD" cheeky_cells/ pipelineclean_*.py`
+- [-] `grep -r "cheeky_cells.misc\|cheeky_cells.devtools\|cheeky_cells.machine_learning.applying\|plotting_generic\|annotation_aided_OLD" cheeky_cells/ pipelineclean_*.py`
   — must return zero hits.
-- [ ] `pip install -e .` in the `cheeky-all` conda env to surface any
+- [X] `pip install -e .` in the `cheeky-all` conda env to surface any
   package-discovery breakage.
 
 ##### Out of scope for this pass
