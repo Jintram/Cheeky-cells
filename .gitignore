@@ -2,3 +2,5 @@
 *.ai
 .DS_Store
 *.egg-info/
+__pycache__/
+.venv/
