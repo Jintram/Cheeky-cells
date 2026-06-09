@@ -26,8 +26,6 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import torch
 
-import yaml
-
 
 from torchvision.transforms import ToTensor
 
@@ -44,8 +42,9 @@ from cheeky_cells.machine_learning.model import unet_model as cunet
 @dataclass
 class Phase3Config:
 
-    # Main output directory
-    outputdirectory: str # = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/'
+    # Per-run segmentation output directory (e.g. <data_root>/SEGMENTATIONS_<id>/).
+    # Holds segfiles/<subdir>/, plots/<subdir>/, and log_segmentation.yaml.
+    segmentation_dir: str
 
     # Model settings
     nr_classes: int # = 5
@@ -93,7 +92,7 @@ def collect_filelist(config: Phase3Config,
 
     config.df_metadata, _ = crw.gen_metadatafile(
         basedirectory=config.data_path_input,
-        outputdirectory=config.outputdirectory,
+        outputdirectory=config.segmentation_dir,
         file_formats=file_formats,
         segchannel=segchannel,
         save_xlsx=False,
@@ -199,8 +198,8 @@ def segment_all_files(config: Phase3Config,
     # Now make all subdirs that exist, but in the output directory
     print("Creating directory structure")
     for subdir in df_metadata_input['subdir'].unique():
-        os.makedirs(os.path.join(config.outputdirectory, "segfiles/", subdir), exist_ok=True)
-        os.makedirs(os.path.join(config.outputdirectory, "plots/", subdir), exist_ok=True)
+        os.makedirs(os.path.join(config.segmentation_dir, "segfiles/", subdir), exist_ok=True)
+        os.makedirs(os.path.join(config.segmentation_dir, "plots/", subdir), exist_ok=True)
     
     # Determine # files to process    
     nr_files = len(df_metadata_input)
@@ -225,7 +224,7 @@ def segment_all_files(config: Phase3Config,
         # determine where to store the segfile later
         current_basefilename = os.path.splitext(df_metadata_input.loc[file_idx, "filename"])[0]
         filepath_segfile = \
-            os.path.join(config.outputdirectory, "segfiles/", 
+            os.path.join(config.segmentation_dir, "segfiles/", 
                          df_metadata_input.loc[file_idx, 'subdir'], 
                          current_basefilename + "_seg.npz")
 
@@ -273,7 +272,7 @@ def segment_all_files(config: Phase3Config,
             
             # save the plot
             fig.savefig(fname = os.path.join(
-                                    config.outputdirectory, "plots/", 
+                                    config.segmentation_dir, "plots/", 
                                     df_metadata_input.loc[file_idx, 'subdir'], 
                                     current_basefilename + "_plot.pdf"), 
                         dpi=config.DPI_plots, bbox_inches='tight')
@@ -308,12 +307,9 @@ def segment_all_files(config: Phase3Config,
     
     print("Done")
     
-    # Now dump the config file in yaml format in output directory
-    # (strip the metadata DataFrame; pyyaml can't represent it cleanly)
-    config_filepath = os.path.join(config.outputdirectory, "log_segmentation.yaml")
-    cfg_dict = {k: v for k, v in config.__dict__.items() if k != 'df_metadata'}
-    with open(config_filepath, 'w') as f:
-        yaml.dump(cfg_dict, f)
+    # Persist resolved config (strip the in-memory DataFrame).
+    config_filepath = os.path.join(config.segmentation_dir, "log_segmentation.yaml")
+    crw.dump_config_yaml(config, config_filepath, skip_keys=('df_metadata',))
     
     return None
 

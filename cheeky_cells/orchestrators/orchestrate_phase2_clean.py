@@ -25,6 +25,7 @@ from cheeky_cells.machine_learning.datasetclass import dataset_classes as cdc
 from cheeky_cells.machine_learning.model import unet_model as cunet
 from cheeky_cells.machine_learning.trainer import trainer as ct
 from cheeky_cells.plotting import plot_train_stats as cpts
+from cheeky_cells.readwrite import cheeky_readwrite as crw
     # import importlib; importlib.reload(ct)
 
 
@@ -64,8 +65,9 @@ def naparicmap_to_pltcmap(cmap_custom, class_names=None):
 @dataclass
 class Phase2Config:
 
-    # Main output directory used by this phase
-    outputdirectory: str 
+    # Training-session directory shared with phase 1: holds humanseg/,
+    # models/, plots_training/, metadata, and phase 1/2 log yamls.
+    training_dir: str
 
     # Input metadata used for train/test split of tiles
     metadata_customized_filename: str 
@@ -113,9 +115,9 @@ class Phase2Config:
         # leaving original __init__ in place.)
             
         # Set up subdirs for input/output    
-        self.segfolder = os.path.join(self.outputdirectory, 'humanseg/')
-        self.modelfolder = os.path.join(self.outputdirectory, 'models/')
-        self.pltfolder = os.path.join(self.outputdirectory, 'plots_training/')
+        self.segfolder = os.path.join(self.training_dir, 'humanseg/')
+        self.modelfolder = os.path.join(self.training_dir, 'models/')
+        self.pltfolder = os.path.join(self.training_dir, 'plots_training/')
         os.makedirs(self.segfolder, exist_ok=True)
         os.makedirs(self.modelfolder, exist_ok=True)
         os.makedirs(self.pltfolder, exist_ok=True)
@@ -529,7 +531,7 @@ def evaluate_on_full_testset_and_plot(config2, model_unet, dataset_test):
 def phase2_setup(config2: Phase2Config) -> str:
 
     # Load metadata
-    df_metadata = pd.read_excel(os.path.join(config2.outputdirectory, config2.metadata_customized_filename))
+    df_metadata = pd.read_excel(os.path.join(config2.training_dir, config2.metadata_customized_filename))
 
     # Build datasets
     dataset_train, dataset_test = build_train_test_datasets(df_metadata, config2)
@@ -615,7 +617,12 @@ def phase2_train(config2, dataset_train, dataset_test, model_unet):
             model_unet,
             dataset_test,
         )
-    
+
+    # Persist resolved config alongside the trained checkpoint.
+    log_path = os.path.join(config2.training_dir, f'phase2_log_{config2.model_timestamp}.yaml')
+    crw.dump_config_yaml(config2, log_path)
+    print(f'Phase 2 log written: {log_path}')
+
     return saved_model_path
 
 

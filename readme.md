@@ -116,15 +116,16 @@ Phase 1 creates a training dataset by letting you manually annotate images using
 
 Copy one of the example scripts (e.g. `pipelineclean_phase1_example_roots.py`) and edit the configuration to match your dataset. The key settings are:
 
-- `inputdirectory` — folder containing your raw images.
-- `outputdirectory` — folder where metadata and annotations will be saved.
+- `inputdirectory` — folder containing your raw images. By default, files are read from this path without being copied.
+- `training_dir` — directory where metadata, annotations, training-session logs, and (optionally) staged originals are stored. Phase 2 must be pointed at the same directory.
 - `tile_size` — size of the image tile shown for annotation.
 - `file_formats` — tuple of image extensions to include, e.g. `('.tif', '.nd2')`.
 - `segfn` — an optional function that produces a preliminary segmentation (saves you drawing from scratch).
+- `copy_originals` — set to `True` to copy original training data to `training_dir/originals/` (`False` by default)
 
 **Step 2: Generate metadata**
 
-Run the script up to `phase1_setup(config1)`. This scans `inputdirectory` and creates a file called `metadata_imagefiles_autogen.xlsx` in the output directory. Open that Excel file, review and edit it (e.g. mark which images to include, assign datasets), then save it under a new name such as `metadata_imagefiles_manual.xlsx`.
+Run the script up to `phase1_setup(config1)`. This scans `inputdirectory` and creates a file called `metadata_imagefiles_autogen.xlsx` in `training_dir`. Open that Excel file, review and edit it (e.g. mark which images to include, assign datasets), then save it under a new name such as `metadata_imagefiles_manual.xlsx`.
 
 **Step 3: Annotate images**
 
@@ -141,5 +142,5 @@ Set `config1.metadatafiles_path` to point to your edited metadata file, then run
 - **Close the Napari window** (click ✕ or Cmd+W) to save that tile's annotation and move to the next image.
 - Press **`q`** to quit the annotation loop entirely (the current tile is not saved).
 
-Annotations are saved as `.npy` files in the `humanseg/` subfolder of your output directory.
+Annotations are saved as `.npy` files in the `humanseg/` subfolder of your `training_dir`.
 

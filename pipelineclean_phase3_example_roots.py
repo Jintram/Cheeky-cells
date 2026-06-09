@@ -24,14 +24,15 @@ import cheeky_cells.plotting.plotting as pp
 # Configuration
 
 # dataset spcecific config
-OUTPUT_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/202602/SEG/'
+# Per-run segmentation output: convention <data_root>/SEGMENTATIONS_<date_id>/.
+SEGMENTATION_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/202602/SEGMENTATIONS_20260609/'
 CURRENT_MODEL = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/models/modelUNet20251026_1027.pth'
 DATA_DIR = '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/DATA/'
 
 
 # Now initialize a configuration
 config3_ara_root = o3.Phase3Config(
-    outputdirectory = OUTPUT_DIR,
+    segmentation_dir = SEGMENTATION_DIR,
     nr_classes = 5,
     nr_channels_input = 3, # (input is rgb, so 3 channels)
     model_checkpoint_to_load = CURRENT_MODEL,
@@ -76,7 +77,7 @@ if False:
 # for file_idx in range(452, 1000):
 #     print(f"Processing file idx {file_idx} ..")
 #     filepath_segfile = \
-#         os.path.join(config.outputdirectory, "segfiles/", 
+#         os.path.join(config.segmentation_dir, "segfiles/", 
 #                         df_metadata_input.loc[file_idx, 'subdir'], 
 #                         f'segfile_idx{file_idx:03d}.npz')
 #     # remove filepath_segfile if it's there

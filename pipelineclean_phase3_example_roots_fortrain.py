@@ -29,14 +29,15 @@ import cheeky_cells.plotting.plotting as pp
 # dataset spcecific config
 CURRENT_MODEL = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/models/modelUNet20251026_1027.pth'
 DATA_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/TRAINING_202603/images for annotation/'
-OUTPUT_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/model_seg_202604/'
+# Per-run segmentation output: convention <data_root>/SEGMENTATIONS_<date_id>/.
+SEGMENTATION_DIR = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/model_seg_202604/'
 
 # Now initialize a configuration
 # The flag "save_images=True" generates additional output data.
 # This allows the segmented images to be used as training data.
 # Turn this of if you don't want this, to avoid excessive hard disk use.
 config3_ara_root = o3.Phase3Config(
-    outputdirectory = OUTPUT_DIR,
+    segmentation_dir = SEGMENTATION_DIR,
     nr_classes = 5,
     nr_channels_input = 3, # (input is rgb, so 3 channels)
     model_checkpoint_to_load = CURRENT_MODEL,

@@ -22,7 +22,7 @@ custom_colormap = {
 }
 
 config2 = o2.Phase2Config(
-    outputdirectory = '/Users/m.wehrens/Data_UVA/2026_02_araplants_highthroughput/TRAINING/TRAINING_2layers/',
+    training_dir = '/Users/m.wehrens/Data_UVA/2026_02_araplants_highthroughput/TRAINING/TRAINING_2layers/',
     metadata_customized_filename = 'metadata_imagefiles_manual.xlsx',
     target_device = 'mps',
     nr_classes = 3,

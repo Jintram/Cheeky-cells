@@ -10,12 +10,15 @@
 
 
 import os
+import shutil
+import time
 import nd2
 import numpy as np
 import skimage.io as skio
 import glob
 
 import pandas as pd
+import yaml
 
 from skimage.exposure import rescale_intensity
 
@@ -309,5 +312,104 @@ def savesegfile_default(x, df_metadata, file_idx, segfolder, suffix):
     # now write the file
     np.save(segfolder + newfilename_annot, x)
     
+# %% ################################################################################
+# Provenance / logging helpers shared across phases
+
+
+def _yaml_safe(v):
+    # Convert one value into something pyyaml can serialize cleanly.
+    # Callables get stringified as "<callable mod.qualname>"; numpy scalars/arrays
+    # are coerced to native types; anything unknown falls back to repr().
+    
+    # keep "normal" classes
+    if v is None or isinstance(v, (bool, int, float, str)):
+        return v
+    # convert if non-compatible (e.g. functions)
+    if callable(v):
+        mod = getattr(v, '__module__', '') or ''
+        qn = getattr(v, '__qualname__', getattr(v, '__name__', repr(v)))
+        return f'<callable {mod}.{qn}>'
+    # recursive for nested stuff
+    if isinstance(v, (list, tuple)):
+        return [_yaml_safe(x) for x in v]
+    if isinstance(v, dict):
+        return {str(k): _yaml_safe(x) for k, x in v.items()}
+    # also keep "normal" np classes
+    if isinstance(v, np.ndarray):
+        return v.tolist()
+    if isinstance(v, (np.integer, np.floating, np.bool_)):
+        return v.item()
+    
+    return repr(v)
+
+
+def dump_config_yaml(config, output_path, skip_keys=()):
+    '''
+    Dump a dataclass-like config object's attributes to a YAML file. Callables
+    are recorded as 'module.qualname' strings; numpy types are normalized;
+    anything else unrepresentable is repr()'d. Pass attribute names in
+    `skip_keys` to exclude them (e.g. an in-memory DataFrame).
+    '''
+    # convert to compatible output format
+    skip = set(skip_keys)
+    out = {k: _yaml_safe(v) for k, v in vars(config).items() if k not in skip}
+    # and save to disk
+    with open(output_path, 'w') as f:
+        yaml.dump(out, f, sort_keys=False)
+    return output_path
+
+
+def write_training_images_filelist(df_metadata, output_path, inputdirectory):
+    '''
+    Write a human-readable provenance snapshot of the training images listed in
+    `df_metadata` (columns: subdir, filename). The output is plain text, sorted,
+    with a short header recording the absolute `inputdirectory` they came from.
+    Reconstruct absolute paths by joining `inputdirectory` with each line.
+    '''
+        
+    with open(output_path, 'w') as f:
+        
+        f.write(f'# inputdirectory: {os.path.abspath(inputdirectory)}\n')
+        f.write(f'# generated: {time.strftime("%Y-%m-%d %H:%M:%S")}\n')
+        f.write(f'# total: {len(df_metadata)} files\n')
+        
+        for subdir, filename in zip(df_metadata['subdir'], df_metadata['filename']):
+            
+            if pd.isna(subdir): 
+                subdir = ''
+            
+            if subdir and subdir != '.':
+                f.write(f'{subdir}/{filename}\n')
+            else:
+                f.write(f'{filename}\n')
+                
+    return output_path
+
+
+def copy_originals_for_training(df_metadata, src_inputdirectory, dst_originals_dir):
+    '''
+    Copy the image files listed in `df_metadata` from `src_inputdirectory`
+    into `dst_originals_dir`, preserving the `subdir` layout. Skips files that
+    already exist at the destination (idempotent). Prints one line per file
+    that is skipped or fails to copy.
+    '''
+
+    os.makedirs(dst_originals_dir, exist_ok=True)
+    for _, row in df_metadata.iterrows():
+        subdir = '' if pd.isna(row['subdir']) else str(row['subdir'])
+        filename = str(row['filename'])
+        subdir_filename = os.path.join(subdir, filename) if subdir and subdir != '.' else filename
+        src = os.path.join(src_inputdirectory, subdir_filename)
+        dst = os.path.join(dst_originals_dir, subdir_filename)
+        if os.path.exists(dst):
+            print(f'  [skip — exists] {subdir_filename}')
+            continue
+        try:
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
+        except OSError as e:
+            print(f'  [copy failed] {subdir_filename}: {e}')
+
+
 # %%
 # 

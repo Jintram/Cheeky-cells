@@ -22,13 +22,14 @@ import cheeky_cells.prepostprocessing_input.ara_roots.ara_plotting as arootp
 
 # Directory where to find the images that you want to annotate
 INPUTDIRECTORY = "/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/Originals/"
-# Directory where the scripts should store your annotated files
-OUTPUTDIRECTORY = "/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/model_seg_20260331/"
+# Training-session directory: holds humanseg/, plots/, metadata, logs.
+# Phase 2 should be pointed at the same directory.
+TRAINING_DIR = "/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/model_seg_20260331/"
 
 # Configuration for this dataset
 config1 = o1.Phase1Config(
     inputdirectory = INPUTDIRECTORY,
-    outputdirectory = OUTPUTDIRECTORY,
+    training_dir = TRAINING_DIR,
     tile_size = 5000,
     bg_percentile = 20,
     # file_formats = ('.jpg', '.tif'),
@@ -37,14 +38,15 @@ config1 = o1.Phase1Config(
     segfn = cds.basicplantseg1,
     rescalegreyforseg=True,
     mylabelcolormap=arootp.custom_colors_plantclasses,
-    file_infix='' # defaults to _tile for historic reasons, but we don't have tiles now
+    file_infix='', # defaults to _tile for historic reasons, but we don't have tiles now
+    # copy_originals=True,  # uncomment to stage originals into TRAINING_DIR/originals/
 )
 
 # to plug in model output (manually rename 'segfiles' first)
 # COMMENT THIS OUT IF YOU DON'T HAVE ALREADY SEGMENTED DATA
 # THE DIRECTORY segfiles_humancorr SHOULD BE MANUALLY CREATED
 # SEE: documentation/use-segresults-newtraining.md
-config1.segfolder = os.path.join(config1.outputdirectory, 'segfiles_humancorr/')
+config1.segfolder = os.path.join(config1.training_dir, 'segfiles_humancorr/')
 
 o1.phase1_setup(config1)
 
@@ -55,7 +57,7 @@ o1.phase1_setup(config1)
 # (and rename it to avoid overwriting behavior).
 # Set the path to the metadata file below
 METADATA_FILE = \
-    config1.outputdirectory + "metadata_imagefiles_autogen.xlsx"
+    config1.training_dir + "metadata_imagefiles_autogen.xlsx"
 
 # Update config1 accordingly
 config1.metadatafiles_path = METADATA_FILE

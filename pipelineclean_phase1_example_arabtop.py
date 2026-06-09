@@ -28,7 +28,7 @@ custom_colormap = {
 # Configuration for this dataset
 config1 = o1.Phase1Config(
     inputdirectory = '/Users/m.wehrens/Data_UVA/2026_02_araplants_highthroughput/images_CR/rgb/',
-    outputdirectory = '/Users/m.wehrens/Data_UVA/2026_02_araplants_highthroughput/TRAINING_DATA/',
+    training_dir = '/Users/m.wehrens/Data_UVA/2026_02_araplants_highthroughput/TRAINING_DATA/',
     tile_size = 5000,
     bg_percentile = 10,
     file_formats = ('.png', ),
@@ -36,7 +36,8 @@ config1 = o1.Phase1Config(
         # ('entry1', 'entry2') etc. Trailing comma required for length 1.
     segfn = cds.basic_planttopview_seg1,
     rescalegreyforseg=False,
-    mylabelcolormap=custom_colormap
+    mylabelcolormap=custom_colormap,
+    # copy_originals=True,  # uncomment to stage originals into training_dir/originals/
 )
 
 o1.phase1_setup(config1)

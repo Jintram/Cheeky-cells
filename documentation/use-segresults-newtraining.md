@@ -8,7 +8,7 @@ for adjustments to the phase 3 pipeline, which are
 
 - `save_images=True` in config, such that additional output is generated that ensures generated annotation is compatible
 train loop requirements.
-- Make sure you have a convenient output directory, and run the script
+- Make sure you have a convenient `segmentation_dir`, and run the script
 as you would otherwise.
 
 Adjustments to phase 1 are:
@@ -23,7 +23,7 @@ config1 = o1.Phase1Config(
     ... 
 )
 # adjusted path
-config1.segfolder = os.path.join(config1.outputdirectory, 'segfiles_humancorr/')
+config1.segfolder = os.path.join(config1.training_dir, 'segfiles_humancorr/')
 ```
 
 - Run the script as you would otherwise.

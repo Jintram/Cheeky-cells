@@ -72,6 +72,14 @@ running the relevant pipeline script or by importing the modified module.
 
 - Each phase is driven by a `Config` dataclass (e.g. `Phase1Config`) constructed
   in the user's pipeline script and passed into orchestrator functions.
+- Phases 1 and 2 share a single **`training_dir`** (folder layout:
+  `humanseg/`, `models/`, `plots/`, `plots_training/`, the metadata xlsx files,
+  `training_images_filelist.txt`, `phase1_log_<timestamp>.yaml`,
+  `phase2_log_<model_timestamp>.yaml`, and optionally `originals/` when
+  `Phase1Config.copy_originals=True`).
+- Phase 3 uses **`Phase3Config.segmentation_dir`**, conventionally a per-run
+  folder like `<data_root>/SEGMENTATIONS_<id>/` containing `segfiles/<subdir>/`,
+  `plots/<subdir>/`, and `log_segmentation.yaml`.
 - Dataset-specific behavior (custom segmentation, custom Napari editor
   functions, custom colormaps) is plugged in by **assigning functions to config
   attributes** rather than subclassing. See
