@@ -61,11 +61,11 @@ Legacy entry-point at repo root:
 
 ##### Phase C — verify
 
-- [-] Do an import-only smoke run of each of the five active entry points
+- [ ] ~~Do an import-only smoke run of each of the five active entry points
   (just up to the first orchestrator call + config construction — no need to
-  open the napari GUI).
-- [-] `grep -r "cheeky_cells.misc\|cheeky_cells.devtools\|cheeky_cells.machine_learning.applying\|plotting_generic\|annotation_aided_OLD" cheeky_cells/ pipelineclean_*.py`
-  — must return zero hits.
+  open the napari GUI).~~
+- [ ] ~~`grep -r "cheeky_cells.misc\|cheeky_cells.devtools\|cheeky_cells.machine_learning.applying\|plotting_generic\|annotation_aided_OLD" cheeky_cells/ pipelineclean_*.py`
+  — must return zero hits.~~
 - [X] `pip install -e .` in the `cheeky-all` conda env to surface any
   package-discovery breakage.
 
