@@ -14,7 +14,7 @@ Additionally, some conceptual choices could be reconsidered.
 - Removing unused code
 - Redesigning how test and training set are defined (without metadata xlsx)
 
-See also: [journal/refactoring_202606.md](journal/refactoring_202606.md).
+See also: [refactoring_202606.md](refactoring_202606.md).
 
 #### Conceptual choices
 
