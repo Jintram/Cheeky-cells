@@ -134,7 +134,7 @@ class Phase2Config:
 # %% ################################################################################
 # Phase 2 plotting related functions
 
-def plot_sidebyside(config2, current_img_rgb, current_prd, current_lbl, plot_name):
+def plot_sidebyside(config2, current_img_rgb, current_prd, current_lbl, plot_name, mydpi=300):
     # pltfolder =  config2.pltfolder;  cmap_plantclasses = config2.cmap_custom_mpl
     
     # Save input / prediction / truth side-by-side figure
@@ -148,7 +148,7 @@ def plot_sidebyside(config2, current_img_rgb, current_prd, current_lbl, plot_nam
         ax[idx_ax].set_xticks([])
         ax[idx_ax].set_yticks([])
     plt.tight_layout()
-    plt.savefig(os.path.join(config2.pltfolder, f'{config2.model_timestamp}_prediction_{plot_name}.pdf'), dpi=300)
+    plt.savefig(os.path.join(config2.pltfolder, f'{config2.model_timestamp}_prediction_{plot_name}.pdf'), dpi=mydpi)
     plt.close()
 
 
@@ -479,7 +479,7 @@ def evaluate_on_tiles_and_plot(config2, model_unet, dataset_train, dataset_test,
             plt.close(fig)
 
 
-def evaluate_on_full_testset_and_plot(config2, model_unet, dataset_test):
+def evaluate_on_full_testset_and_plot(config2, model_unet, dataset_test, mydpi=2400):
     """ Function to optionally predict and plot full resolution of test imgs."""
 
     max_to_plot = config2.n_full_test_to_plot
@@ -511,13 +511,13 @@ def evaluate_on_full_testset_and_plot(config2, model_unet, dataset_test):
 
             # plot 1
             plot_name = f'fulltest_{idx:03d}_{filename_base}'
-            plot_sidebyside(config2, current_img_rgb, current_prd_np, current_lbl_np, plot_name)
+            plot_sidebyside(config2, current_img_rgb, current_prd_np, current_lbl_np, plot_name, mydpi=mydpi)
             
             # plot 2
             plot_name = f'fulltest_{idx:03d}_{filename_base}'
             fig = plot_overlay_contour2(config2, current_img_rgb, current_prd_np[0].argmax(0), current_lbl_np,
                                         mylinewidths=.03, myfontsize=6)
-            plt.savefig(os.path.join(config2.pltfolder, f'predictionoverlay2_{config2.model_timestamp}_{plot_name}.pdf'), dpi=2400)
+            plt.savefig(os.path.join(config2.pltfolder, f'predictionoverlay2_{config2.model_timestamp}_{plot_name}.pdf'), dpi=mydpi)
             plt.close(fig)
 
     if was_training:

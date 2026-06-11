@@ -30,7 +30,8 @@ def plot_final_confusion_matrix(list_confusion_matrices,
                                 class_names = None,
                                 save_path = None,
                                 customize_fonts = True,
-                                normalize_by = "true"):
+                                normalize_by = "true",
+                                mywidth=6/2.54, myheight=6/2.54):
     """Plot the final confusion matrix from training stats as heatmap.
 
     A confusion matrix M[C_t, C_p] contains counts for the amount of times
@@ -54,7 +55,7 @@ def plot_final_confusion_matrix(list_confusion_matrices,
         raise ValueError("normalize_by should be either 'true' or 'predicted'")
         
     # figure
-    fig, axs = plt.subplots(1,1, figsize=(5/2.54, 5/2.54))
+    fig, axs = plt.subplots(1,1, figsize=(mywidth, myheight))
 
     # Now plot heatmap
     axs = sns.heatmap(current_matrix_norm*100, cmap='viridis', vmin=0, vmax=100)
@@ -75,15 +76,19 @@ def plot_final_confusion_matrix(list_confusion_matrices,
         for j in range(current_matrix_norm.shape[1]):
             value = current_matrix_norm[i, j]
             text_color = "black" if value > 0.5 else "white"
-            axs.text(j + 0.5, i + 0.5, f"{(value*100):.2f}%", ha="center", va="center", color=text_color)
+            axs.text(j + 0.5, i + 0.5, f"{(value*100):.2f}%", 
+                     ha="center", va="center", color=text_color,
+                     fontsize=5)
     
     # add title diagonal = recall or precision, depending on normalization
     if normalize_by == "true":
         axs.set_title("Normalized confusion matrix\n(diagonal = recall)",
                         fontdict={'fontsize': 7})
+        axs.set_ylabel("True label (↓)")
     elif normalize_by == "predicted":
         axs.set_title("Normalized confusion matrix\n(diagonal = precision)",
                       fontdict={'fontsize': 7})
+        axs.set_xlabel("Predicted label (↑)")
 
     # get fig
     fig = axs.get_figure()
@@ -168,7 +173,7 @@ def plot_performance(df_stats_long,
     
     # Now plot using seaborn
     axs = sns.lineplot(
-            df_IoU_melt,
+            df_stats_long,
             x = "epoch", y = y, 
             hue = "class", 
             palette = custom_cmap)
@@ -193,9 +198,16 @@ def plot_metrics(list_confusion_matrices,
                  class_names = None, 
                  cmap_custom = None,
                  save_path = None, 
-                 customize_fonts = True):
+                 customize_fonts = True,
+                 mywidth=16.7/2.54, myheight=5/2.54):
     """plot IoU, precision, recall plots"""
     # stats=["IoU", "Precision", "Recall"]; cmap_custom=None
+    
+    dict_explain = {
+        "IoU": "Intersection over Union",
+        "Precision": "Of predicted, %correct",
+        "Recall": "Of actual, %predicted"
+    }
     
     if customize_fonts:
         plt.rcParams.update({'font.size': 7, 'font.family': 'Arial'})
@@ -205,7 +217,7 @@ def plot_metrics(list_confusion_matrices,
                                             class_names = class_names)
     
     # Create figure w/ subplots
-    fig, axs = plt.subplots(1,len(stats), figsize=(16.7/2.54, 5/2.54))
+    fig, axs = plt.subplots(1,len(stats), figsize=(mywidth, myheight))
     
     # Loop over params and plot
     for idx in range(len(stats)):
@@ -216,8 +228,9 @@ def plot_metrics(list_confusion_matrices,
             ax = axs[idx],
             palette=cmap_custom,
             linewidth = 1.0)
-        # axs[idx].set_yscale("log")
+        # axs[idx].set_yscale("log")        
         axs[idx].set_xlabel("Training progress (epoch)")
+        axs[idx].set_title(dict_explain[stats[idx]])
     
     plt.tight_layout()
     

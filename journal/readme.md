@@ -32,6 +32,12 @@ having to annotate large image files.
     - Should be relocated to a pre-processing step.
 
 
+#### Issues
 
+*See also github.*
+
+- Labels are sometimes stored into npy as "weird" int type, `np.int32` conversion required in 
+`cheeky_cells/machine_learning/datasetclass/dataset_classes.py`. Look into 
+how labels are saved, and update to save to np.int32.
 
 

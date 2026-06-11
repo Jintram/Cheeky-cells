@@ -22,8 +22,7 @@ import cheeky_cells.prepostprocessing_input.ara_roots.ara_plotting as arootp
 
 # Directory where to find the images that you want to annotate
 INPUTDIRECTORY = "/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/Originals/"
-# Training-session directory: holds humanseg/, plots/, metadata, logs.
-# Phase 2 should be pointed at the same directory.
+# Directory with model-training related data (trained model itself, training data, ..)
 TRAINING_DIR = "/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/model_seg_20260331/"
 
 # Configuration for this dataset

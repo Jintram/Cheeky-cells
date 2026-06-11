@@ -137,6 +137,9 @@ class ImageDataset_tiles(Dataset):
         # now produce the label and the image
         image   = np.load(self.datadir + self.filelist_imgs[sample_idx], allow_pickle=True)
         label   = np.load(self.datadir + self.filelist_labels[sample_idx], allow_pickle=True)
+        # PIL.Image.fromarray (used in the label augmentation pipeline) does not support int64
+        if label.dtype == np.int64:
+            label = label.astype(np.int32)
         
         # transform
         if self.transform:
