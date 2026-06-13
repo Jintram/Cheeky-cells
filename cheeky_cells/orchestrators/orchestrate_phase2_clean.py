@@ -7,9 +7,10 @@
 
 import cheeky_cells  
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import os
 import time
+import warnings
 
 import numpy as np
 import pandas as pd
@@ -91,7 +92,11 @@ class Phase2Config:
     learning_rate: float = 1e-3
     batch_size: int = 8
     epochs: int = 24
-    lr_schedule_step_len: int = 8
+    # Piecewise LR-multiplier schedule: list of (n_epochs, relative_lr) tuples.
+    # Past the end of the schedule the last relative_lr is held (clamped).
+    # Default: short warm-up, long plateau at base LR, then two decay steps.
+    lr_schedule_relative: list = field(default_factory=lambda: [(2, 0.1), (14, 1.0), (6, 0.1), (2, 0.01)])
+        # Previous default: [(8, 1), (8, 0.1), (8, 0.01)]
     train_log_interval: int = 10  # log training loss every N batches
 
     # Optional: load an existing checkpoint before training
@@ -128,6 +133,15 @@ class Phase2Config:
             self.cmap_custom_mpl = naparicmap_to_mplcmap(self.cmap_custom, self.nr_classes)
         if self.cmap_custom_palette is None:
             self.cmap_custom_palette = naparicmap_to_pltcmap(self.cmap_custom, self.class_names)
+
+        # Warn if the lr schedule's total length doesn't match the requested epoch count;
+        # mismatches are silent otherwise because the schedule clamps at its last value.
+        total_sched_epochs = sum(n for n, _ in self.lr_schedule_relative)
+        if total_sched_epochs != self.epochs:
+            warnings.warn(
+                f"lr_schedule_relative covers {total_sched_epochs} epochs but epochs={self.epochs}; "
+                f"LR will clamp at the last relative value past the end of the schedule."
+            )
         
 
 
@@ -324,12 +338,16 @@ def initialize_unet_model(config2: Phase2Config, cunet):
     return cunet.UNet(n_channels=3, n_classes=config2.nr_classes).to(config2.target_device)
 
 
-def custom_lr_schedule(epoch: int, step_len: int = 50):
-    
-    # Define piecewise LR scaling schedule
-    lr_scalefactor = [1] * step_len + [0.1] * step_len + [0.01] * step_len
-    if epoch >= step_len * 3:
-        epoch = step_len * 3 - 1
+def custom_lr_schedule(epoch: int, schedule):
+
+    # Expand (n_epochs, relative_lr) tuples into a per-epoch multiplier list
+    # E.g. [(2, 1), (2, .1)] --> [1, 1, 0.1, 0.1]
+    lr_scalefactor = [rel_lr for n, rel_lr in schedule for _ in range(n)]
+
+    # Clamp past the end of the schedule
+    if epoch >= len(lr_scalefactor):
+        return lr_scalefactor[-1]
+
     return lr_scalefactor[epoch]
 
 
@@ -352,7 +370,7 @@ def train_model(config2, dataset_train, dataset_test, model_unet):
     # Build scheduler
     scheduler = LambdaLR(
         optimizer,
-        lr_lambda=lambda epoch: custom_lr_schedule(epoch, step_len=config2.lr_schedule_step_len),
+        lr_lambda=lambda epoch: custom_lr_schedule(epoch, schedule=config2.lr_schedule_relative),
     )
 
     # Run training and validation loops
@@ -396,8 +414,11 @@ def train_model(config2, dataset_train, dataset_test, model_unet):
         print(f"Epoch {epoch_idx + 1} completed in {elapsed_time}..")
 
     config2.timedelta = (time.time() - start_time_overall)
-    elapsed_time_overall = time.strftime('%Hh:%Mm:%Ss', time.gmtime(config2.timedelta))
+    _days, _rem = divmod(int(config2.timedelta), 86400)
+    elapsed_time_overall = f"{_days}d:" + time.strftime('%Hh:%Mm:%Ss', time.gmtime(_rem))
     print(f'Training completed in {elapsed_time_overall}..')
+    print(f'Start time: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(start_time_overall))}')
+    print(f'End time: {time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(time.time()))}')
     print('Done!')
     
 
@@ -408,8 +429,9 @@ def save_model_checkpoint(config2, model_unet, model_stats = None):
     
     # Set up timestamped filename
     # config2.model_timestamp = time.strftime('%Y%m%d_%H%M')    
-    # format in HH:MM
-    timedelta_str = time.strftime('%Hh%Mm', time.gmtime(config2.timedelta))
+    # format in Dd HHhMMm (days split out; %H wraps at 24h)
+    _days, _rem = divmod(int(config2.timedelta), 86400)
+    timedelta_str = f"{_days}d" + time.strftime('%Hh%Mm', time.gmtime(_rem))
     output_path = os.path.join(config2.modelfolder, f'modelUNet{config2.model_timestamp}__trained{timedelta_str}.pth')
     
     # Save model parameters (ie "the model")
