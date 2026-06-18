@@ -13,7 +13,7 @@ import cheeky_cells.orchestrators.orchestrate_phase3_clean as o3
 
 # Dataset-specific imports
 # To pre-process a raw image
-import cheeky_cells.prepostprocessing_input.ara_roots.preprocessing as pp_ara
+import root_length.functions_pipeline.preprocessing_seg as pp_ara
 import cheeky_cells.prepostprocessing_input.ara_roots.ara_plotting as plt_ara
     # import importlib; importlib.reload(pp_ara)
 

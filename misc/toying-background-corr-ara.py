@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 
 import cheeky_cells.readwrite.cheeky_readwrite as crw
     # import importlib; importlib.reload(crw)
-import cheeky_cells.prepostprocessing_input.ara_roots.preprocessing as prep
+import root_length.functions_pipeline.preprocessing_seg as prep
 
 img = np.load("/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/SELECTION_ML/model_seg/segfiles/20250802batch10_OY_06_img.npy")
 img2 = crw.image_autorescale(img, rescalelog=False, bg_percentile=50)
