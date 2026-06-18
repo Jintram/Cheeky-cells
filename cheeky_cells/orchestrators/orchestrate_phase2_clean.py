@@ -206,8 +206,8 @@ def plot_training_history(config2, list_loss_tracker, list_loss_tracker_batch, l
     datax = list_loss_tracker_batch
     plt.plot(datax, datay, color='black', label='Train loss')
     plt.ylim([0, np.max(datay) * 1.1])
-    plt.axvline(datax[-1] / 3, linestyle='--', color='black')
-    plt.axvline(datax[-1] / 3 * 2, linestyle='--', color='black')
+    # plt.axvline(datax[-1] / 3, linestyle='--', color='black')
+    # plt.axvline(datax[-1] / 3 * 2, linestyle='--', color='black')
 
     # Plot epoch-wise validation metric
     # percentage correct
@@ -621,6 +621,10 @@ def phase2_train(config2, dataset_train, dataset_test, model_unet):
     _,_=cpts.plot_learning_rate(
             list_lr, 
             save_path=os.path.join(config2.pltfolder, f'{config2.model_timestamp}__learningrate.pdf')
+    )
+    _,_=cpts.plot_learning_rate_stripped(
+            list_lr, 
+            save_path=os.path.join(config2.pltfolder, f'{config2.model_timestamp}__learningrate_stripped.pdf')
     )
     plt.close("all")
 

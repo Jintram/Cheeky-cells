@@ -2,6 +2,7 @@
 
 import numpy as np
 from matplotlib import pyplot as plt
+from matplotlib.colors import ListedColormap
 
 def set_global_fontsize(thesize=8):
     """Set global font size for all plots."""
@@ -26,12 +27,16 @@ def overlayplot(current_img_rgb,
     img_shape_ratio = current_img_rgb.shape[1] / current_img_rgb.shape[0]
     cm_to_inch = 1 / 2.54
     
+    # crop cmap to get expected color<->class matching    
+    subset_N = np.min([np.max(current_pred_lbl_transl)+1, cmap_custom.N])
+    cmap_custom_cropped = ListedColormap(cmap_custom.colors[:subset_N])
+    
     # Create the plot
     fig, ax = plt.subplots(1, 1, figsize=(10 * img_shape_ratio * cm_to_inch, 10 * cm_to_inch))
     
-    ax.imshow(current_img_rgb)
+    ax.imshow(current_img_rgb)    
     ax.imshow(current_pred_lbl_transl, 
-              cmap=cmap_custom, 
+              cmap=cmap_custom_cropped, 
               vmin=0, vmax=np.max(current_pred_lbl_transl), 
               alpha=1.0 * (current_pred_lbl_transl > 0))
     

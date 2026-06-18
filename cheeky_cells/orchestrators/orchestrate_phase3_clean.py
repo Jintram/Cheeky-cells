@@ -282,6 +282,8 @@ def segment_all_files(config: Phase3Config,
         end_time = time.time(); time_taken.append(end_time - start_time)
         print("Time taken for this file: {:.2f} seconds".format(end_time - start_time),
               "\nAverage time: {:.2f} seconds".format(np.mean(time_taken)))
+        pred_time_remaining = (nr_files - file_idx - 1) * np.mean(time_taken) 
+        print(f"Predicted remaining time: {pred_time_remaining/ 60:.2f} minutes")
 
         # Save raw predicted mask
         print('Saving prediction..')

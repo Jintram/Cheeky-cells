@@ -258,14 +258,37 @@ def plot_learning_rate(list_lr, save_path=None):
         fig.savefig(save_path, bbox_inches='tight', dpi=600)
     
     return fig, axs
-    
-    
-    
-    
-     
-     
-     
-     
+
+def plot_learning_rate_stripped(list_lr, save_path=None):
+    """ Plot learning rate, but only plot left and right box side, and the line """
+
+    fig, axs = plt.subplots(1, 1, figsize=(5/2.54, 2.5/2.54))
+
+    axs.plot(np.arange(len(list_lr)), list_lr)
+    axs.set_yscale("log")
+
+    # Strip labels, ticks, title
+    axs.set_xlabel("")
+    axs.set_ylabel("")
+    axs.set_title("")
+    axs.set_xticks([])
+    axs.set_yticks([])
+    axs.tick_params(left=False, right=False, top=False, bottom=False,
+                    labelleft=False, labelright=False, labeltop=False, labelbottom=False)
+
+    # Keep only left and right spines
+    axs.spines['top'].set_visible(False)
+    axs.spines['bottom'].set_visible(False)
+    axs.spines['left'].set_visible(True)
+    axs.spines['right'].set_visible(True)
+
+    plt.tight_layout()
+
+    if save_path is not None:
+        os.makedirs(os.path.dirname(save_path), exist_ok=True)
+        fig.savefig(save_path, bbox_inches='tight', dpi=600)
+
+    return fig, axs
 
 
 # %%
