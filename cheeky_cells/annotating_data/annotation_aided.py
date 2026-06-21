@@ -366,9 +366,17 @@ def annotate_pictures_aided(df_metadata, file_idx,
     # call the napari edit function
     if mynaparifunction is None:
         mynaparifunction = edit_annotation_napari  
-    seg_layer_data, quitloop_flag = mynaparifunction(display_image, img_seg0_tile, mylabelcolormap, title=str_windowtitle)
         
-    if quitloop_flag:
+    seg_layer_data, quitloop_flag = mynaparifunction(display_image, img_seg0_tile, mylabelcolormap, 
+                                                     title=str_windowtitle)
+    
+    # if quitloop_flag is a dict, read out 'quitloop_flag' from that dict
+    # (to handle newer versions of "mynaparifunction")
+    if isinstance(quitloop_flag, dict):
+        quitloop_flag = quitloop_flag.get('quitloop_flag', False)
+    
+    # return without svaing if requested
+    if quitloop_flag or (seg_layer_data is None):
         return quitloop_flag
         
     # now save the annotation data
