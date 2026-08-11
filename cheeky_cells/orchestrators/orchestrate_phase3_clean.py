@@ -87,12 +87,21 @@ class Phase3Config:
     target_device: str = 'mps'
     
     # Optional plotting settings
+    #: Custom cmap of type `matplotlib.colors.ListedColormap` can be provided 
+    #: for predicted segmentation masks. If None, a default cmap will be used. 
     cmap_custom: ListedColormap | None = None
+    #: Optional; DPI used for plots, default is 300.
     DPI_plots: int = 300
+    #: Optional; Extra plotting parameters for a custom plotting function
+    #: can be defined here.
     extraplottingparams: dict = field(default_factory=dict)
     
     # Save _img.npy and _img_enhanced.npy alongside segmentation
     # (useful for feeding predictions back into the annotation loop)
+    #: If True, the raw input image and the normalized/enhanced image will be saved
+    #: alongside the segmentation output. This is only useful when
+    #: the segmentation is used to feed back into the annotation loop (phase 1).
+    #: (Default setting: False.)
     save_images: bool = False
 
 
@@ -161,10 +170,11 @@ def initialize_unet_model_for_inference(config: Phase3Config):
     return ML_model
 
 
-def load_model_checkpoint(model_unet, checkpoint_path: str):
-    
-    # Load model weights from checkpoint file
-    model_unet.load_state_dict(torch.load(checkpoint_path))
+def load_model_checkpoint(model_unet, checkpoint_path: str, target_device: str):
+
+    # Load model weights from checkpoint file; map_location lets you load a
+    # checkpoint that was saved on another device (e.g. cuda-trained, applied on mps)
+    model_unet.load_state_dict(torch.load(checkpoint_path, map_location=target_device))
     
     return model_unet
 
@@ -208,7 +218,7 @@ def segment_all_files(config: Phase3Config,
     # Set up model
     print("Initializing U-Net")
     model_unet = initialize_unet_model_for_inference(config)
-    model_unet = load_model_checkpoint(model_unet, config.model_checkpoint_to_load)
+    model_unet = load_model_checkpoint(model_unet, config.model_checkpoint_to_load, config.target_device)
     model_unet.eval()
     
     # Now make all subdirs that exist, but in the output directory
