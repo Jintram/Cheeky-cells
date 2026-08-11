@@ -5,6 +5,8 @@
 
 *Walkthrough of the pipeline and hierarchy of functions called.*
 
+<br><br>
+
 User interacts using the orchestrator (`orchestrate_phase3_clean`):
 
 ```
