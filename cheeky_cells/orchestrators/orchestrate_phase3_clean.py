@@ -42,32 +42,48 @@ from cheeky_cells.machine_learning.model import unet_model as cunet
 @dataclass
 class Phase3Config:
 
-    # Per-run segmentation output directory (e.g. <data_root>/SEGMENTATIONS_<id>/).
-    # Holds segfiles/<subdir>/, plots/<subdir>/, and log_segmentation.yaml.
+    #: Directory were segmentation output will be put.
+    #: Holds segfiles/<subdir>/, plots/<subdir>/, and log_segmentation.yaml.
+    #: <subdir>/ will mimic the original subdirectories of the data input dir.
     segmentation_dir: str
 
     # Model settings
-    nr_classes: int # = 5
-    nr_channels_input: int # 3
+    nr_classes: int #: Number of different classes (things) to segment.
+    nr_channels_input: int #: Type of input, typically 1 for gray scale, and 3 for color images.
     
-    # Required checkpoint path for inference
+    #: Path to already trained model (.pth file) to be used for segmentation.
     model_checkpoint_to_load: str # = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/models/modelUNet20251026_1027.pth'
 
     # Required image preprocessing settings
-    bg_percentile : int # for intensity normalization, background to subtract
+    #: Determines how images are normalized before shown to ML network.
+    #: The percentile determines what is considered background, which will
+    #: be subtracted to normalize the image intensity range.
+    bg_percentile : int 
 
-    # Input data metadata settings
-    data_path_input: str # '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/DATA/'
-    # In-memory metadata of files to segment; populated by collect_filelist().
+    #: Path to directory with images to segment. May contain subdirectories with images.
+    data_path_input: str 
+    
+    #: Where metadata of files to segment is stored; populated by collect_filelist().
     df_metadata: pd.DataFrame | None = None
     
-    # Preprocessing function (optional), modifies image
+    #: Optional preprocessing function that pre-processes all images to be segmented
+    #: Should look like: 
+    #: `img_toseg_prepr, prepr_info = config.fn_specific_preprocessing(img_toseg)`
+    #: Where `img_toseg` and `img_toseg_prepr` are input and output image,
+    #: `prepr_info` is additional information generated that also gets 
+    #: stored later in npz.
     fn_specific_preprocessing: Callable | None = None
     
-    # Function to generate plots
+    #: If set, plots will be made using this function.
+    #: Shuold look like:
+    #: `fig, ax = config.fn_plotting(img, pred, cmap, ..)`
+    #: where **config.extraplottingparams will be passed to the function as well.
     fn_plotting: Callable | None = None    
     
-    # Model settings with defaults
+    #: Torch device that the model and image tensors are moved to;
+    #: `'mps'` (Apple Silicon), `'cuda'` (NVIDIA) or `'cpu'`.
+    #: Note that 'cpu' will typically work on all machines, but will be very 
+    #: slow. Use 'mps' or 'cuda' if available.
     target_device: str = 'mps'
     
     # Optional plotting settings
