@@ -3,7 +3,7 @@
 
 # Technical details
 
-Walkthrough of the pipeline and functions called:
+*Walkthrough of the pipeline and hierarchy of functions called.*
 
 User interacts using the orchestrator (`orchestrate_phase3_clean`):
 
