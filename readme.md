@@ -144,12 +144,12 @@ Set `config1.metadatafiles_path` to point to your edited metadata file, then run
 
 Annotations are saved as `.npy` files in the `humanseg/` subfolder of your `training_dir`.
 
-# Using a model ("phase 3")
+# Using a previously trained model to get segmented images ("phase 3")
 
 
 ## Loading libraries and setting up
 
-This describes document describes what happens if a segmentation run is 
+This section describes how a segmentation run is 
 executed. This is referred to as "phase 3" ("phase 1" is annotation of 
 training data, and "phase 2" is training the segmentatino network).
 
