@@ -23,6 +23,10 @@ Each phase has an example entry-point script at the repo root
 The package was originally developed for cell and plant segmentation but is
 intended to be generic across segmentation problems.
 
+Description of how scripts, functions and classes tie together (incomplete currently) 
+can be found in [documentation_technical.md](documentation_technical.md). 
+This file must to be updated in case of refactoring.
+
 ---
 
 ## Repository layout
@@ -133,7 +137,6 @@ running the relevant pipeline script or by importing the modified module.
 ## Pointers for deeper context
 
 - High-level usage and installation: [readme.md](readme.md)
-- Description of how scripts, functions and classes tie together (incomplete currently): [documentation_technical.md](documentation_technical.md)
 - Plugging in external functionality: [documentation/importing_functionality.md](documentation/importing_functionality.md)
 - Dataset format expectations: [documentation/datasets.md](documentation/datasets.md)
 - Using prior model output as training input: [documentation/use-segresults-newtraining.md](documentation/use-segresults-newtraining.md)

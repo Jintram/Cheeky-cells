@@ -5,9 +5,15 @@
 
 Walkthrough of the pipeline and functions called:
 
+User interacts using the orchestrator (`orchestrate_phase3_clean`):
+
 ```
 import cheeky_cells.orchestrators.orchestrate_phase3_clean as o3
 ```
+
+Then, pipeline goes:
+
+<br><br>
 
 - `config3 = o3.Phase3Config(..)`
     - User sets up `config3` object
