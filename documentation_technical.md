@@ -14,7 +14,10 @@ import cheeky_cells.orchestrators.orchestrate_phase3_clean as o3
 - `config3 = o3.collect_filelist(config3)`
     - collects file list based on image directory (`data_path_input`)
 - `o3.segment_all_files(config3)`
-    - segments all files
+    - segments all files and produce the seg files
+    - see below for further info
+    
+<br><br>
     
 - `o3.segment_all_files(config3)` 
     - imports 

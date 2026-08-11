@@ -153,7 +153,7 @@ This section describes how a segmentation run is
 executed. This is referred to as "phase 3" ("phase 1" is annotation of 
 training data, and "phase 2" is training the segmentatino network).
 
-Import the 'orchestrator', a script that calls the correct parts
+Import the 'orchestrator', that module provides functions that calls the correct parts
 of the scripts in this library.
 
 ```
@@ -222,7 +222,7 @@ and `ara_root` to the type of data we're processing.
 
 Using Python's `help(o3.Phase3Config)` function will give you documentation
 on the parameters.
-An excerpt for the above parameters:
+An excerpt for the parameters used above:
 
 ```
     segmentation_dir : str
@@ -287,13 +287,13 @@ config3_ara_root = o3.collect_filelist(config3_ara_root)
 
 this will store a file list into the configuration object. 
 
-Optionally, you can take a look at the data, 
+If you like, you can inspect that file list,
 
 ```
 config3_ara_root.df_metadata
 ```
 
-Yields:
+yields:
 
 ```
 	subdir	filename	segmentation_channel	train_or_test
@@ -306,9 +306,10 @@ Yields:
 The `segmentation_channel` and `train_or_test` are for advanced purposes, ie in case
 you want to re-use this data for training.
 
-For a general segmentation run, `<yourconfig>.df_metadata` just serves as a file list (in pandas dataframe format).
+For a general segmentation run, `<yourconfig>.df_metadata` just serves as a file list for all
+the files you want to segment (in pandas dataframe format).
 
-## Description of the pipeline itself
+## Actually running the pipeline
 
 Running the command `o3.segment_all_files(<yourconfig>)` will 
 now automatically start segmenting the images in the folder 
