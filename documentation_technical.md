@@ -27,7 +27,7 @@ Then, pipeline goes:
     
 <br><br>
 
-What `o3.segment_all_files(config3)` does:
+**segment_all_files()**
     
 - `o3.segment_all_files(config3)` 
     - imports 
