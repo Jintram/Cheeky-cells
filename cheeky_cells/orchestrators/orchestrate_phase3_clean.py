@@ -41,67 +41,91 @@ from cheeky_cells.machine_learning.model import unet_model as cunet
 
 @dataclass
 class Phase3Config:
+    """Settings for applying a trained model to new images.
 
-    #: Directory were segmentation output will be put.
-    #: Holds segfiles/<subdir>/, plots/<subdir>/, and log_segmentation.yaml.
-    #: <subdir>/ will mimic the original subdirectories of the data input dir.
+    Construct this in your pipeline script and pass it to the phase 3
+    functions. Dataset-specific behavior is plugged in via the fn_* fields
+    (see documentation/importing_functionality.md).
+
+    Attributes
+    ----------
+    segmentation_dir : str
+        Directory where segmentation output will be put. Holds
+        segfiles/<subdir>/, plots/<subdir>/, and log_segmentation.yaml.
+        <subdir>/ will mimic the original subdirectories of the data input dir.
+    nr_classes : int
+        Number of different classes (things) to segment.
+    nr_channels_input : int
+        Type of input, typically 1 for gray scale, and 3 for color images.
+    model_checkpoint_to_load : str
+        Path to already trained model (.pth file) to be used for segmentation,
+        e.g. <training_dir>/models/modelUNet20251026_1027.pth.
+    bg_percentile : int
+        Determines how images are normalized before shown to ML network.
+        The percentile determines what is considered background, which will
+        be subtracted to normalize the image intensity range.
+    data_path_input : str
+        Path to directory with images to segment. May contain subdirectories
+        with images.
+    df_metadata : pd.DataFrame | None
+        Where metadata of files to segment is stored; populated by
+        collect_filelist().
+    fn_specific_preprocessing : Callable | None
+        Optional preprocessing function that pre-processes all images to be
+        segmented. Should look like:
+        `img_toseg_prepr, prepr_info = config.fn_specific_preprocessing(img_toseg)`
+        Where `img_toseg` and `img_toseg_prepr` are input and output image,
+        `prepr_info` is additional information generated that also gets
+        stored later in npz.
+    fn_plotting : Callable | None
+        If set, plots will be made using this function. Should look like:
+        `fig, ax = config.fn_plotting(img, pred, cmap, ..)`
+        where **config.extraplottingparams will be passed to the function as well.
+    target_device : str
+        Torch device that the model and image tensors are moved to;
+        'mps' (Apple Silicon), 'cuda' (NVIDIA) or 'cpu'. Note that 'cpu' will
+        typically work on all machines, but will be very slow. Use 'mps' or
+        'cuda' if available.
+    cmap_custom : ListedColormap | None
+        Custom cmap of type matplotlib.colors.ListedColormap can be provided
+        for predicted segmentation masks. If None, a default cmap will be used.
+    DPI_plots : int
+        Optional; DPI used for plots.
+    extraplottingparams : dict
+        Optional; extra plotting parameters for a custom plotting function
+        can be defined here.
+    save_images : bool
+        If True, the raw input image and the normalized/enhanced image will be
+        saved alongside the segmentation output. This is only useful when the
+        segmentation is used to feed back into the annotation loop (phase 1).
+    """
+
     segmentation_dir: str
 
     # Model settings
-    nr_classes: int #: Number of different classes (things) to segment.
-    nr_channels_input: int #: Type of input, typically 1 for gray scale, and 3 for color images.
-    
-    #: Path to already trained model (.pth file) to be used for segmentation.
-    model_checkpoint_to_load: str # = '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/ANALYSIS/202510/models/modelUNet20251026_1027.pth'
+    nr_classes: int
+    nr_channels_input: int
+    model_checkpoint_to_load: str
 
     # Required image preprocessing settings
-    #: Determines how images are normalized before shown to ML network.
-    #: The percentile determines what is considered background, which will
-    #: be subtracted to normalize the image intensity range.
-    bg_percentile : int 
+    bg_percentile: int
 
-    #: Path to directory with images to segment. May contain subdirectories with images.
-    data_path_input: str 
-    
-    #: Where metadata of files to segment is stored; populated by collect_filelist().
+    # Input data metadata settings
+    data_path_input: str
     df_metadata: pd.DataFrame | None = None
-    
-    #: Optional preprocessing function that pre-processes all images to be segmented
-    #: Should look like: 
-    #: `img_toseg_prepr, prepr_info = config.fn_specific_preprocessing(img_toseg)`
-    #: Where `img_toseg` and `img_toseg_prepr` are input and output image,
-    #: `prepr_info` is additional information generated that also gets 
-    #: stored later in npz.
+
+    # Dataset-specific functions
     fn_specific_preprocessing: Callable | None = None
-    
-    #: If set, plots will be made using this function.
-    #: Shuold look like:
-    #: `fig, ax = config.fn_plotting(img, pred, cmap, ..)`
-    #: where **config.extraplottingparams will be passed to the function as well.
-    fn_plotting: Callable | None = None    
-    
-    #: Torch device that the model and image tensors are moved to;
-    #: `'mps'` (Apple Silicon), `'cuda'` (NVIDIA) or `'cpu'`.
-    #: Note that 'cpu' will typically work on all machines, but will be very 
-    #: slow. Use 'mps' or 'cuda' if available.
+    fn_plotting: Callable | None = None
+
+    # Model settings with defaults
     target_device: str = 'mps'
-    
+
     # Optional plotting settings
-    #: Custom cmap of type `matplotlib.colors.ListedColormap` can be provided 
-    #: for predicted segmentation masks. If None, a default cmap will be used. 
     cmap_custom: ListedColormap | None = None
-    #: Optional; DPI used for plots, default is 300.
     DPI_plots: int = 300
-    #: Optional; Extra plotting parameters for a custom plotting function
-    #: can be defined here.
     extraplottingparams: dict = field(default_factory=dict)
-    
-    # Save _img.npy and _img_enhanced.npy alongside segmentation
-    # (useful for feeding predictions back into the annotation loop)
-    #: If True, the raw input image and the normalized/enhanced image will be saved
-    #: alongside the segmentation output. This is only useful when
-    #: the segmentation is used to feed back into the annotation loop (phase 1).
-    #: (Default setting: False.)
+
     save_images: bool = False
 
 

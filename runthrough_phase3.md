@@ -69,3 +69,54 @@ config3_ara_root = o3.Phase3Config(
     DPI_plots = 1200
 )
 ```
+
+Using Python's `help(o3.Phase3Config)` function will give you documentation
+on the parameters.
+An excerpt for the above parameters:
+
+```
+    segmentation_dir : str
+        Directory where segmentation output will be put. Holds
+        segfiles/<subdir>/, plots/<subdir>/, and log_segmentation.yaml.
+        <subdir>/ will mimic the original subdirectories of the data input dir.
+    nr_classes : int
+        Number of different classes (things) to segment.
+    nr_channels_input : int
+        Type of input, typically 1 for gray scale, and 3 for color images.
+    model_checkpoint_to_load : str
+        Path to already trained model (.pth file) to be used for segmentation,
+        e.g. <training_dir>/models/modelUNet20251026_1027.pth.
+    bg_percentile : int
+        Determines how images are normalized before shown to ML network.
+        The percentile determines what is considered background, which will
+        be subtracted to normalize the image intensity range.
+    data_path_input : str
+        Path to directory with images to segment. May contain subdirectories
+        with images.
+    fn_specific_preprocessing : Callable | None
+        Optional preprocessing function that pre-processes all images to be
+        segmented. Should look like:
+        `img_toseg_prepr, prepr_info = config.fn_specific_preprocessing(img_toseg)`
+        Where `img_toseg` and `img_toseg_prepr` are input and output image,
+        `prepr_info` is additional information generated that also gets
+        stored later in npz.
+    fn_plotting : Callable | None
+        If set, plots will be made using this function. Should look like:
+        `fig, ax = config.fn_plotting(img, pred, cmap, ..)`
+        where **config.extraplottingparams will be passed to the function as well.
+    cmap_custom : ListedColormap | None
+        Custom cmap of type matplotlib.colors.ListedColormap can be provided
+        for predicted segmentation masks. If None, a default cmap will be used.
+    DPI_plots : int
+        Optional; DPI used for plots.
+```
+
+On other machine's than new macbooks, the `target_device` setting is relevant as well.
+
+```
+    target_device : str
+        Torch device that the model and image tensors are moved to;
+        'mps' (Apple Silicon), 'cuda' (NVIDIA) or 'cpu'. Note that 'cpu' will
+        typically work on all machines, but will be very slow. Use 'mps' or
+        'cuda' if available.
+```
