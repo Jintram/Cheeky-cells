@@ -73,6 +73,9 @@ config3_ara_root = o3.Phase3Config(
 )
 ```
 
+The name `config3_ara_root` is arbitrary. In this example, the 3 refers to phase 3,
+and `ara_root` to the type of data we're processing.
+
 Using Python's `help(o3.Phase3Config)` function will give you documentation
 on the parameters.
 An excerpt for the above parameters:
@@ -123,3 +126,102 @@ On other machine's than new macbooks, the `target_device` setting is relevant as
         typically work on all machines, but will be very slow. Use 'mps' or
         'cuda' if available.
 ```
+
+#### Note to self, things to improve
+
+*The parameter names `segmentation_dir` and `data_path_input` could have
+more clear names. E.g. `directory_input_images` and `directory_segmentation_output`.*
+
+### Collecting list of image files to segment.
+
+To continue segmentation, the pipeline requires you to collect a list of images,
+which can be done with 
+
+```
+config3_ara_root = o3.collect_filelist(config3_ara_root)
+```
+
+this will store a file list into the configuration object. 
+
+Optionally, you can take a look at the data, 
+
+```
+config3_ara_root.df_metadata
+```
+
+Yields:
+
+```
+	subdir	filename	segmentation_channel	train_or_test
+0	.	20250530_OY_07.tif	all	
+1	.	20250527_OY05.tif	all	
+2	.	20250527_OY11.tif	all	 
+(..)
+```
+
+The `segmentation_channel` and `train_or_test` are for advanced purposes, ie in case
+you want to re-use this data for training.
+
+For a general segmentation run, `<yourconfig>.df_metadata` just serves as a file list (in pandas dataframe format).
+
+## Description of the pipeline itself
+
+Running the command `o3.segment_all_files(<yourconfig>)` will 
+now automatically start segmenting the images in the folder 
+set by `<yourconfig>.data_path_input`.
+
+Additional options to the `o3.segment_all_files()` function are
+`max_files_to_process` and `overwrite_files=True`, as can be found with 
+`help(o3.segment_all_files)`.
+
+```    
+overwrite_files: 
+    Boolean indicating whether to overwrite existing segmentation files.
+max_files_to_process: 
+    Maximum number of files to process. If None, process all files. 
+    Intended for testing purposes.
+```
+
+### Pipeline output
+
+The pipeline produces a directory structure as follows:
+
+```
+<output-dir>
+    plots/        
+        contains a plot of each segmented file (if fn_plotting is set)
+        the plots show the segmentation result for visual inspection.
+        subdirectory structure follows that of original data.
+    segfiles/
+        contains _seg.npz files that contain the segmentation information.        
+    log_segmentation.yaml
+```
+
+This is the endpoint of this segmentation pipeline.
+
+The results in the npz files can be read by other scripts for further 
+processing.
+
+# Technical details
+
+Walkthrough of the pipeline and functions called:
+
+```
+import cheeky_cells.orchestrators.orchestrate_phase3_clean as o3
+```
+
+- `config3 = o3.Phase3Config(..)`
+    - User sets up `config3` object
+- `config3 = o3.collect_filelist(config3)`
+    - collects file list based on image directory (`data_path_input`)
+- `o3.segment_all_files(config3)`
+    - segments all files
+    
+- `o3.segment_all_files(config3)` 
+    - imports 
+    ```
+    import cheeky_cells.readwrite.cheeky_readwrite as crw
+    import cheeky_cells.annotating_data.annotation_aided as caa
+    from cheeky_cells.machine_learning.model import unet_model as cunet
+    ```
+    - blabla

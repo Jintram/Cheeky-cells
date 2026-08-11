@@ -147,6 +147,8 @@ def collect_filelist(config: Phase3Config,
         save_xlsx=False,
     )
 
+    print("Metadata stored in config.df_metadata.")
+
     return config
 
 
@@ -226,6 +228,18 @@ def segment_all_files(config: Phase3Config,
                       max_files_to_process = None):
     """
     Loads model, and applies it to all images.
+    
+    Input arguments;
+    Input arguments:
+        config: 
+            Phase3Config object containing configuration parameters.
+        overwrite_files: 
+            Boolean indicating whether to overwrite existing segmentation files.
+        max_files_to_process: 
+            Maximum number of files to process. If None, process all files. 
+            Intended for testing purposes.
+    
+    NOTES
     
     This function could be made much faster if it used batching of images.
     Though already the algorithm takes quite a heavy toll on memory usage.

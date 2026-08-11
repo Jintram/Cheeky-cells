@@ -3,6 +3,7 @@
 # Segments arabidopsis root/shoot dataset
 # 
 # This file uses the code in "cheeky_cells" to segment a test set of plants.
+# This file is a copy of 
 
 # %% ###########################################################################
 # Libraries
