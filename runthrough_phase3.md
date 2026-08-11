@@ -53,16 +53,19 @@ config3_ara_root = o3.Phase3Config(..)
 will return an python object that stores parameters that tell
 the scripts how to perform the run.
 
-A typical configuration will look as follows:
+A typical configuration will look as the following example:
 
 ```
 config3_ara_root = o3.Phase3Config(
-    segmentation_dir = SEGMENTATION_DIR,
+    segmentation_dir = \
+        '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/SEG_2026_highresmodel-crop_TESTSET/',
     nr_classes = 5,
     nr_channels_input = 3, # (input is rgb, so 3 channels)
-    model_checkpoint_to_load = CURRENT_MODEL,
+    model_checkpoint_to_load = \
+        '/Users/m.wehrens/Data_UVA/2025_10_hypocotyl-root-length/TRAININGDIR_SET-1n2_20260618_cleaned/models/modelUNet20260619_2100__trained0d19h46m.pth',
     bg_percentile = 10,
-    data_path_input = DATA_DIR,
+    data_path_input = \
+        '/Users/m.wehrens/Data_notbacked/2025_hypocotyl_images/DATA/tif/high_res/20250527/',
     fn_specific_preprocessing = None, # pp_ara.preprocess_getbbox_insideplate2,
     fn_plotting = pp.overlayplot,
     cmap_custom = plt_ara.cmap_custom_plantclasses,
