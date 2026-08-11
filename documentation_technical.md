@@ -13,9 +13,9 @@ User interacts using the orchestrator (`orchestrate_phase3_clean`):
 import cheeky_cells.orchestrators.orchestrate_phase3_clean as o3
 ```
 
-Then, pipeline goes:
-
 <br><br>
+
+Then, pipeline goes:
 
 - `config3 = o3.Phase3Config(..)`
     - User sets up `config3` object
@@ -26,6 +26,8 @@ Then, pipeline goes:
     - see below for further info
     
 <br><br>
+
+What `o3.segment_all_files(config3)` does:
     
 - `o3.segment_all_files(config3)` 
     - imports 
