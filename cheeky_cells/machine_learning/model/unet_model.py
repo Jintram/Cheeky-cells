@@ -43,14 +43,20 @@ class UNet(nn.Module):
         logits = self.outc(x)
         return logits
 
-    def use_checkpointing(self):
-        self.inc = torch.utils.checkpoint(self.inc)
-        self.down1 = torch.utils.checkpoint(self.down1)
-        self.down2 = torch.utils.checkpoint(self.down2)
-        self.down3 = torch.utils.checkpoint(self.down3)
-        self.down4 = torch.utils.checkpoint(self.down4)
-        self.up1 = torch.utils.checkpoint(self.up1)
-        self.up2 = torch.utils.checkpoint(self.up2)
-        self.up3 = torch.utils.checkpoint(self.up3)
-        self.up4 = torch.utils.checkpoint(self.up4)
-        self.outc = torch.utils.checkpoint(self.outc)
+    # The following code allows increasing memory efficiency by 
+    # re-computing parts of the network (this will save memory,
+    # as only the block input is saved, which is sometimes necessary
+    # to fit large training tile sizes [beneficial for the training]).
+    # But this part is currently not used anywhere.
+    #
+    # def use_checkpointing(self):
+    #     self.inc = torch.utils.checkpoint(self.inc)
+    #     self.down1 = torch.utils.checkpoint(self.down1)
+    #     self.down2 = torch.utils.checkpoint(self.down2)
+    #     self.down3 = torch.utils.checkpoint(self.down3)
+    #     self.down4 = torch.utils.checkpoint(self.down4)
+    #     self.up1 = torch.utils.checkpoint(self.up1)
+    #     self.up2 = torch.utils.checkpoint(self.up2)
+    #     self.up3 = torch.utils.checkpoint(self.up3)
+    #     self.up4 = torch.utils.checkpoint(self.up4)
+    #     self.outc = torch.utils.checkpoint(self.outc)
