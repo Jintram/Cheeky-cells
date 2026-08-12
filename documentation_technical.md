@@ -5,6 +5,14 @@
 
 *Walkthrough of the pipeline and hierarchy of functions called.*
 
+# Phase 1
+
+(..)
+
+# Phase 2
+
+(..)
+
 # Phase 3
 
 <br><br>

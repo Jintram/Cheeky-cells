@@ -7,6 +7,12 @@ The goal  of this repository is to facilitate easy training and application of a
 
 It has been tested and optimized for detection of cells and plants, but can also be used for other purposes.
 
+# Technical information
+
+See the file [documentation_technical.md](documentation_technical.md) for a 
+description of the hierarchy of functions, classes and scripts in this 
+code base.
+
 # Installation
 
 ### General requirement, install Conda
@@ -347,8 +353,3 @@ This is the endpoint of this segmentation pipeline.
 The results in the npz files can be read by other scripts for further 
 processing.
 
-# Technical information
-
-See the file [documentation_technical.md](documentation_technical.md) for a 
-description of the hierarchy of functions, classes and scripts in this 
-code base.
