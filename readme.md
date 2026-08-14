@@ -150,8 +150,9 @@ Set `config1.metadatafiles_path` to point to your edited metadata file, then run
 
 Annotations are saved as `.npy` files in the `humanseg/` subfolder of your `training_dir`.
 
-# Using a previously trained model to get segmented images ("phase 3")
+# Using a model to segment images ("phase 3")
 
+*You first need to train a model, see above.*
 
 ## Loading libraries and setting up
 
@@ -353,3 +354,15 @@ This is the endpoint of this segmentation pipeline.
 The results in the npz files can be read by other scripts for further 
 processing.
 
+
+
+# License
+
+This repository is released under the MIT license, see [LICENSE](LICENSE).
+
+In short: you are free to use, modify, and redistribute this code, including
+for commercial purposes, as long as the copyright notice and the license text
+are kept with it. The code comes without any warranty.
+
+If you use these scripts for work that you publish, a citation is much
+appreciated (though the license does not require it).

@@ -2,6 +2,7 @@
 name = "cheeky-cells"
 version = "0.1.0"
 dependencies = []
+license = {file = "LICENSE"}
 
 [build-system]
 requires = ["setuptools>=64"]
