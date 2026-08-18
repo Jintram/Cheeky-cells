@@ -1,6 +1,6 @@
 [project]
 name = "cheeky-cells"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = []
 license = {file = "LICENSE"}
 
