@@ -147,16 +147,17 @@ def loadimgfile_metadata(df_metadata, file_idx, basedirectory, show_name=False, 
     if do_invert:
         img = invertimage(img)
         
+    # Return the correct img (channel); selected first, as channel selection
+    # assumes (C, H, W) images, which the alpha-channel removal below would crop
+    if not (segchannel == 'all' or pd.isna(segchannel)):
+        return img[segchannel]
+
     # reduce channels to 3 if we have more (png might have alpha channel, e.g.)
     if len(img.shape) == 3:
         if img.shape[2] > 3:
-            img = img[:,:,:3]     
-        
-    # Return the correct img (channel)
-    if segchannel == 'all' or pd.isna(segchannel):
-        return img
-    else:
-        return img[segchannel]
+            img = img[:,:,:3]
+
+    return img
     
 
 def subtractbaseline(anarray, bg_percentile=.2):

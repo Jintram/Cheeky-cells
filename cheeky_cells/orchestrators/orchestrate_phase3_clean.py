@@ -64,12 +64,17 @@ class Phase3Config:
         Determines how images are normalized before shown to ML network.
         The percentile determines what is considered background, which will
         be subtracted to normalize the image intensity range.
-    data_path_input : str
+        Ignored when autorescale=False.
+    data_path_input : str | None
         Path to directory with images to segment. May contain subdirectories
-        with images.
+        with images. If None, the input directory is read per file from
+        the 'basedir' column of df_metadata (for data spread over multiple
+        directories; collect_filelist() can then not be used).
     df_metadata : pd.DataFrame | None
         Where metadata of files to segment is stored; populated by
-        collect_filelist().
+        collect_filelist(), or set directly. Optional columns: 'basedir'
+        (see data_path_input) and 'subdir_out', which, if present, replaces
+        'subdir' as output subdirectory.
     fn_specific_preprocessing : Callable | None
         Optional preprocessing function that pre-processes all images to be
         segmented. Should look like:
@@ -77,6 +82,20 @@ class Phase3Config:
         Where `img_toseg` and `img_toseg_prepr` are input and output image,
         `prepr_info` is additional information generated that also gets
         stored later in npz.
+    autorescale : bool
+        If True (default), images are normalized with crw.image_autorescale()
+        after fn_specific_preprocessing. If False, the output of
+        fn_specific_preprocessing is fed to the model as is (note that
+        ToTensor() divides by 255 only for uint8 input).
+    tile_size : int | None
+        If set, images are segmented in tiles of tile_size x tile_size
+        (e.g. 512), to handle images too large for a single pass.
+        If None (default), the whole image is processed at once.
+    tile_overlap : int
+        Margin (px) at each tile edge that is discarded when stitching,
+        to avoid edge artifacts. Tiles thus overlap 2*tile_overlap.
+    batch_size : int
+        Number of tiles fed to the model at once.
     fn_plotting : Callable | None
         If set, plots will be made using this function. Should look like:
         `fig, ax = config.fn_plotting(img, pred, cmap, ..)`
@@ -111,12 +130,18 @@ class Phase3Config:
     bg_percentile: int
 
     # Input data metadata settings
-    data_path_input: str
+    data_path_input: str | None = None
     df_metadata: pd.DataFrame | None = None
 
     # Dataset-specific functions
     fn_specific_preprocessing: Callable | None = None
     fn_plotting: Callable | None = None
+
+    # Image normalization and tiling settings
+    autorescale: bool = True
+    tile_size: int | None = None
+    tile_overlap: int = 64
+    batch_size: int = 8
 
     # Model settings with defaults
     target_device: str = 'mps'
@@ -139,6 +164,9 @@ def collect_filelist(config: Phase3Config,
                      file_formats=('.tif', '.nd2', '.jpg', '.png'),
                      segchannel='all'):
 
+    if config.data_path_input is None:
+        raise ValueError("config.data_path_input is None — set it, or set config.df_metadata directly (with 'basedir' column).")
+
     config.df_metadata, _ = crw.gen_metadatafile(
         basedirectory=config.data_path_input,
         outputdirectory=config.segmentation_dir,
@@ -160,9 +188,11 @@ def get_input_img_file(config: Phase3Config,
     # Pre-processing info
     prepr_info = None
     
-    # Read image from metadata
+    # Read image from metadata (input dir from config, or per file from metadata)
+    basedirectory = config.data_path_input if config.data_path_input is not None \
+                        else df_metadata.loc[file_idx, 'basedir']
     img_toseg = crw.loadimgfile_metadata(df_metadata, file_idx,
-                                         basedirectory=config.data_path_input,
+                                         basedirectory=basedirectory,
                                          show_name=True)
         # plt.imshow(img_toseg)
 
@@ -173,12 +203,16 @@ def get_input_img_file(config: Phase3Config,
         img_toseg_prepr = img_toseg
         # plt.imshow(img_toseg_prepr)
 
-    # Normalize intensity
+    # Normalize intensity (can be switched off when fn_specific_preprocessing
+    # takes care of normalization)
     # bg_percentile = 10 is value used for arabidopsis roots
-    img_toseg_prepr_norm = crw.image_autorescale(
-        img_toseg_prepr, 
-        rescalelog=False, 
-        bg_percentile=config.bg_percentile)
+    if config.autorescale:
+        img_toseg_prepr_norm = crw.image_autorescale(
+            img_toseg_prepr,
+            rescalelog=False,
+            bg_percentile=config.bg_percentile)
+    else:
+        img_toseg_prepr_norm = img_toseg_prepr
         # plt.imshow(img_toseg_prepr_norm)
     
     return img_toseg_prepr_norm, img_toseg_prepr, prepr_info
@@ -220,6 +254,39 @@ def get_ml_prediction(img_input, the_model, target_device: str, showplot: bool, 
 
     return prd_labels
 
+
+def predict_tiled(img_input, the_model, target_device: str,
+                  tile_size: int, overlap: int, batch_size: int):
+    """
+    Tiled version of get_ml_prediction(), for images too large to process
+    in one go. Tiles of tile_size are placed every tile_size-2*overlap px;
+    of each tile, only the center (without overlap margin) is kept, to
+    avoid edge artifacts. Works for 2d and (H, W, C) images.
+    """
+
+    # Pad image (by mirroring) such that tile centers exactly cover the image
+    step = tile_size - 2 * overlap
+    H, W = img_input.shape[:2]
+    nr_rows, nr_cols = int(np.ceil(H / step)), int(np.ceil(W / step))
+    padding = [(overlap, nr_rows * step - H + overlap),
+               (overlap, nr_cols * step - W + overlap)] + [(0, 0)] * (img_input.ndim - 2)
+    img_padded = np.pad(img_input, padding, mode='reflect')
+
+    # Predict tiles in batches, and paste their centers in the output
+    # (ToTensor is used for consistency with get_ml_prediction)
+    tile_corners = [(r * step, c * step) for r in range(nr_rows) for c in range(nr_cols)]
+    prd_labels = np.zeros((nr_rows * step, nr_cols * step), dtype=np.int64)
+    with torch.no_grad():
+        for batch_start in range(0, len(tile_corners), batch_size):
+            batch_corners = tile_corners[batch_start:batch_start + batch_size]
+            X = torch.stack([ToTensor()(img_padded[y:y + tile_size, x:x + tile_size])
+                             for y, x in batch_corners]).to(target_device)
+            batch_labels = the_model(X).argmax(1).cpu().numpy()
+            for (y, x), tile_labels in zip(batch_corners, batch_labels):
+                prd_labels[y:y + step, x:x + step] = tile_labels[overlap:overlap + step, overlap:overlap + step]
+
+    return prd_labels[:H, :W]
+
 # %% ###########################################################################
 # Runner
 
@@ -243,6 +310,7 @@ def segment_all_files(config: Phase3Config,
     
     This function could be made much faster if it used batching of images.
     Though already the algorithm takes quite a heavy toll on memory usage.
+    (Tiles of large images, see config.tile_size, are batched.)
     
     Fluctuations in memory use can occur due to input images dimensions being 
     different.
@@ -260,8 +328,10 @@ def segment_all_files(config: Phase3Config,
     model_unet.eval()
     
     # Now make all subdirs that exist, but in the output directory
+    # (output subdirs can be set separately via an optional 'subdir_out' column)
     print("Creating directory structure")
-    for subdir in df_metadata_input['subdir'].unique():
+    col_subdir_out = 'subdir_out' if 'subdir_out' in df_metadata_input.columns else 'subdir'
+    for subdir in df_metadata_input[col_subdir_out].unique():
         os.makedirs(os.path.join(config.segmentation_dir, "segfiles/", subdir), exist_ok=True)
         os.makedirs(os.path.join(config.segmentation_dir, "plots/", subdir), exist_ok=True)
     
@@ -288,8 +358,8 @@ def segment_all_files(config: Phase3Config,
         # determine where to store the segfile later
         current_basefilename = os.path.splitext(df_metadata_input.loc[file_idx, "filename"])[0]
         filepath_segfile = \
-            os.path.join(config.segmentation_dir, "segfiles/", 
-                         df_metadata_input.loc[file_idx, 'subdir'], 
+            os.path.join(config.segmentation_dir, "segfiles/",
+                         df_metadata_input.loc[file_idx, col_subdir_out],
                          current_basefilename + "_seg.npz")
 
         # Skip if file was already segged (unless preferred otherwise)
@@ -312,14 +382,24 @@ def segment_all_files(config: Phase3Config,
         )
             # plt.imshow(img_toseg_prepr_norm)
 
-        # Get the prediction
-        img_pred_lbls = get_ml_prediction(
-            img_toseg_prepr_norm,
-            the_model=model_unet,
-            target_device=config.target_device,
-            showplot=False,
-            cmap_plantclasses=config.cmap_custom,
-        )
+        # Get the prediction (in tiles for large images)
+        if config.tile_size is not None:
+            img_pred_lbls = predict_tiled(
+                img_toseg_prepr_norm,
+                the_model=model_unet,
+                target_device=config.target_device,
+                tile_size=config.tile_size,
+                overlap=config.tile_overlap,
+                batch_size=config.batch_size,
+            )
+        else:
+            img_pred_lbls = get_ml_prediction(
+                img_toseg_prepr_norm,
+                the_model=model_unet,
+                target_device=config.target_device,
+                showplot=False,
+                cmap_plantclasses=config.cmap_custom,
+            )
             # plt.imshow(img_pred_lbls, cmap = config.cmap_custom)
         
         # Then produce a plot
@@ -336,8 +416,8 @@ def segment_all_files(config: Phase3Config,
             
             # save the plot
             fig.savefig(fname = os.path.join(
-                                    config.segmentation_dir, "plots/", 
-                                    df_metadata_input.loc[file_idx, 'subdir'], 
+                                    config.segmentation_dir, "plots/",
+                                    df_metadata_input.loc[file_idx, col_subdir_out],
                                     current_basefilename + "_plot.pdf"), 
                         dpi=config.DPI_plots, bbox_inches='tight')
             plt.close(fig)

@@ -31,6 +31,9 @@ Then, user-defined pipeline goes:
     - User sets up `config3` object
 - `config3 = o3.collect_filelist(config3)`
     - collects file list based on image directory (`data_path_input`)
+    - alternatively, set `config3.df_metadata` directly, with optional 
+    columns `basedir` (per-file input dir, requires `data_path_input=None`) 
+    and `subdir_out` (output subdir, instead of `subdir`)
 - `o3.segment_all_files(config3)`
     - segments all files and produce the seg files
     - see below for further info
@@ -62,12 +65,15 @@ Under the hood, the following happens:
             based on the file list and current file index.
             - `config.fn_specific_preprocessing()` (if available)
             to preprocess image (e.g. cropping)
-            - `crw.image_autorescale()` to scale the image.
+            - `crw.image_autorescale()` to scale the image
+            (unless `config.autorescale=False`).
             - RETURNS loaded image, rescaled image, extra info
         - `get_ml_prediction()` which 
             - performs tensor conversion
             - calls `the_model(X)` yielding the prediction (as tensor)
             - converts prediction to numpy array
+        - or, if `config.tile_size` is set, `predict_tiled()`
+            - same, but per batch of overlapping tiles, stitched together
         - if `config.fn_plotting` is set
             - creates plot in output dir using `fn_plotting()`
         - saves the prediction
