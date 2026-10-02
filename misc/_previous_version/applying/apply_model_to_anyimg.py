@@ -6,7 +6,7 @@
 # MODEL_WEIGHT_PATH = '/Users/m.wehrens/Data_UVA/2024_07_fluopi_assay/ANALYSES/UNET_MODELS/modelUNet20250426_0929_LONGTRAINGOOD.pth'
 
 ################################################################################
-
+# %% 
 # =====
 # General libraries
 import matplotlib.pyplot as plt
@@ -31,8 +31,8 @@ import glob
 
 # =====
 # Fluoppi related 
-import sys; sys.path.append('/Users/m.wehrens/Documents/git_repos/_UVA/2024_Fluoppi/')
-import source_2.fluoppi2_readwrite as flan42_rw
+# import sys; sys.path.append('/Users/m.wehrens/Documents/git_repos/_UVA/2024_Fluoppi/')
+import fluoppi_pipeline.fluoppi2_readwrite as flan42_rw
 # import source.fluoppi_mainlib_v4 as flan4
 # import source.fluoppi_config as flaconf
 # import source.fluoppi_morestats as mstats
@@ -50,6 +50,7 @@ import source.annotation_aided as aa
 # import importlib; import applying.apply_model_to_anyimg; importlib.reload(applying.apply_model_to_anyimg); from applying.apply_model_to_anyimg import *
 
 ################################################################################
+# %%
 
 def load_sample_data_for_test(sample_idx=0, showit=False):
     
