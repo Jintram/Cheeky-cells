@@ -73,8 +73,9 @@ class Phase3Config:
     df_metadata : pd.DataFrame | None
         Where metadata of files to segment is stored; populated by
         collect_filelist(), or set directly. Optional columns: 'basedir'
-        (see data_path_input) and 'subdir_out', which, if present, replaces
-        'subdir' as output subdirectory.
+        (see data_path_input) and 'subdir_out_prefix', which, if present,
+        is put in front of 'subdir' in the output directories
+        (<segmentation_dir>/segfiles/<subdir_out_prefix>/<subdir>/).
     fn_specific_preprocessing : Callable | None
         Optional preprocessing function that pre-processes all images to be
         segmented. Should look like:
@@ -265,11 +266,14 @@ def predict_tiled(img_input, the_model, target_device: str,
     """
 
     # Pad image (by mirroring) such that tile centers exactly cover the image
-    step = tile_size - 2 * overlap
+    # padding parameters
+    step = tile_size - 2 * overlap # = tile size minus the overlap on each side
     H, W = img_input.shape[:2]
     nr_rows, nr_cols = int(np.ceil(H / step)), int(np.ceil(W / step))
+    # calculate padding such that n tiles fit neatly
     padding = [(overlap, nr_rows * step - H + overlap),
                (overlap, nr_cols * step - W + overlap)] + [(0, 0)] * (img_input.ndim - 2)
+    # apply padding
     img_padded = np.pad(img_input, padding, mode='reflect')
 
     # Predict tiles in batches, and paste their centers in the output
@@ -279,9 +283,12 @@ def predict_tiled(img_input, the_model, target_device: str,
     with torch.no_grad():
         for batch_start in range(0, len(tile_corners), batch_size):
             batch_corners = tile_corners[batch_start:batch_start + batch_size]
+            # lift multiple tiles at once into torch
             X = torch.stack([ToTensor()(img_padded[y:y + tile_size, x:x + tile_size])
                              for y, x in batch_corners]).to(target_device)
+            # predict the labels
             batch_labels = the_model(X).argmax(1).cpu().numpy()
+            # paste results to output array
             for (y, x), tile_labels in zip(batch_corners, batch_labels):
                 prd_labels[y:y + step, x:x + step] = tile_labels[overlap:overlap + step, overlap:overlap + step]
 
@@ -328,10 +335,13 @@ def segment_all_files(config: Phase3Config,
     model_unet.eval()
     
     # Now make all subdirs that exist, but in the output directory
-    # (output subdirs can be set separately via an optional 'subdir_out' column)
+    # (optionally prefixed via a 'subdir_out_prefix' column, e.g. to group outputs)
     print("Creating directory structure")
-    col_subdir_out = 'subdir_out' if 'subdir_out' in df_metadata_input.columns else 'subdir'
-    for subdir in df_metadata_input[col_subdir_out].unique():
+    subdirs_out = df_metadata_input['subdir']
+    if 'subdir_out_prefix' in df_metadata_input.columns:
+        subdirs_out = df_metadata_input.apply(
+            lambda row: os.path.join(row['subdir_out_prefix'], row['subdir']), axis=1)
+    for subdir in subdirs_out.unique():
         os.makedirs(os.path.join(config.segmentation_dir, "segfiles/", subdir), exist_ok=True)
         os.makedirs(os.path.join(config.segmentation_dir, "plots/", subdir), exist_ok=True)
     
@@ -359,7 +369,7 @@ def segment_all_files(config: Phase3Config,
         current_basefilename = os.path.splitext(df_metadata_input.loc[file_idx, "filename"])[0]
         filepath_segfile = \
             os.path.join(config.segmentation_dir, "segfiles/",
-                         df_metadata_input.loc[file_idx, col_subdir_out],
+                         subdirs_out[file_idx],
                          current_basefilename + "_seg.npz")
 
         # Skip if file was already segged (unless preferred otherwise)
@@ -417,7 +427,7 @@ def segment_all_files(config: Phase3Config,
             # save the plot
             fig.savefig(fname = os.path.join(
                                     config.segmentation_dir, "plots/",
-                                    df_metadata_input.loc[file_idx, col_subdir_out],
+                                    subdirs_out[file_idx],
                                     current_basefilename + "_plot.pdf"), 
                         dpi=config.DPI_plots, bbox_inches='tight')
             plt.close(fig)

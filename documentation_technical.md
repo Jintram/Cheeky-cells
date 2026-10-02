@@ -33,7 +33,9 @@ Then, user-defined pipeline goes:
     - collects file list based on image directory (`data_path_input`)
     - alternatively, set `config3.df_metadata` directly, with optional 
     columns `basedir` (per-file input dir, requires `data_path_input=None`) 
-    and `subdir_out` (output subdir, instead of `subdir`)
+    and `subdir_out_prefix` (output goes to `<subdir_out_prefix>/<subdir>/`);
+    `subdir_out_prefix` allows preventing non-unique output paths when 
+    multiple basedirs are present.
 - `o3.segment_all_files(config3)`
     - segments all files and produce the seg files
     - see below for further info
