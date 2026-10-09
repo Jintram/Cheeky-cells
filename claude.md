@@ -102,7 +102,7 @@ running the relevant pipeline script or by importing the modified module.
 ## Working preferences
 
 - Coding style;
-    - Code should be relatively offensive (no tests, extensive docstrings). 
+    - Code should be relatively offensive (no tests, minimal docstrings). 
     - Code should be modular, but rather a two liner than extensive function definitions.
     - Generally, code is organized in topical blocks, headed by explanatory comment 
     focussed on the why and what, not the how.
