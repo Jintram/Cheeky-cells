@@ -9,7 +9,8 @@ interactively:
 srun --partition=capacity --gpus=1 --cpus-per-task=1 --time=00:30:00 --pty bash
 ```
 
-I performed my installation on this interactive node.
+I performed my installation on this interactive node 
+(exit the interactive node later by `exit`).
 
 To get information regarding the required CUDA version, use:
 ```sh
@@ -53,4 +54,5 @@ And activate the environment using:
 ```sh
 conda activate test2
 ```
+
 
