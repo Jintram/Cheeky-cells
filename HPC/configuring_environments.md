@@ -9,6 +9,8 @@ interactively:
 srun --partition=capacity --gpus=1 --cpus-per-task=1 --time=00:30:00 --pty bash
 ```
 
+I performed my installation on this interactive node.
+
 To get information regarding the required CUDA version, use:
 ```sh
 nvidia-smi
